@@ -15,6 +15,7 @@ from extract_task10b_features import (
     build_feature_matrix,
     extract_features,
     mean_pool_l2,
+    prepare_visual_inputs,
     write_feature_outputs,
 )
 
@@ -141,3 +142,27 @@ def test_extract_features_records_runtime_loader_failure(tmp_path):
     failure = json.loads((output / "failure.json").read_text(encoding="utf-8"))
     assert failure["state"] == "failed"
     assert "transformers unavailable" in failure["error"]
+
+
+def test_prepare_visual_inputs_uses_only_the_processor_image_token():
+    class FakeProcessor:
+        image_token = "<image-token>"
+
+        def __init__(self):
+            self.call = None
+
+        def __call__(self, **kwargs):
+            self.call = kwargs
+            return {"pixel_values": torch.ones(2, 3), "image_grid_thw": torch.ones(1, 3)}
+
+    processor = FakeProcessor()
+    image = object()
+
+    result = prepare_visual_inputs(processor, image)
+
+    assert result["pixel_values"].shape == (2, 3)
+    assert processor.call == {
+        "text": ["<image-token>"],
+        "images": [image],
+        "return_tensors": "pt",
+    }

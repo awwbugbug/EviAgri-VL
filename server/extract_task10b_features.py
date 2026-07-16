@@ -40,6 +40,17 @@ def assert_frozen(model: torch.nn.Module) -> None:
         raise RuntimeError(f"model has trainable parameters: {trainable[:10]}")
 
 
+def prepare_visual_inputs(processor: Any, image: Any) -> Any:
+    image_token = str(getattr(processor, "image_token", ""))
+    if not image_token:
+        raise ValueError("Qwen processor does not expose an image token")
+    return processor(
+        text=[image_token],
+        images=[image],
+        return_tensors="pt",
+    )
+
+
 def build_feature_matrix(
     rows: Iterable[dict[str, Any]],
     token_fn: Callable[[dict[str, Any]], torch.Tensor],
@@ -246,7 +257,7 @@ def extract_features(
                 raise ValueError(f"missing manifest image: {image_path}")
             with Image.open(image_path) as loaded:
                 image = loaded.convert("RGB")
-            inputs = processor(images=[image], return_tensors="pt")
+            inputs = prepare_visual_inputs(processor, image)
             pixel_values = inputs["pixel_values"].to(
                 device=visual_parameter.device,
                 dtype=visual_parameter.dtype,
