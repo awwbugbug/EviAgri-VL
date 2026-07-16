@@ -1,7 +1,7 @@
 # Task 10C C2 64-Step 学习曲线微实验设计
 
 日期：2026-07-17  
-状态：用户已批准方案 A，待书面规格复核  
+状态：用户已批准方案 A；方法与数据自审通过
 上位规格：`docs/superpowers/specs/2026-07-17-task10c-diagnosis-only-design.md`
 
 ## 1. 唯一科学问题
@@ -129,3 +129,13 @@ C2 使用全新实验目录，拒绝覆盖 C1 或任何既有结果。训练、c
 3. 再次本地核验 SHA256；
 4. 写入当日简短关键记忆并提交 GitHub；
 5. 强制停止在 C2 结果汇报处，服务器保持开机，不自动进入任何后续训练。
+
+## 10. 2026-07-17 自审记录
+
+总体判断：`Ready to implement with preregistered caveats`。
+
+- 已修复高影响问题：C2 明确继续使用 C1 相同的 64-row smoke-train，而不是切换到完整 192-row train，保持训练步数为唯一配置干预。
+- 已修复比较问题：step 64 同样运行固定 smoke-dev，学习曲线只在相同 16 张图上比较 8/16/32/64；完整 80 张 dev 仅作最终评测。
+- 已修复统计粒度问题：paired bootstrap 以 80 个 source image 为单位，将同一 source 的 prompt/seed 行绑定，禁止伪增样本量。
+- 本地签名归档复核：smoke-train 64 行、每类 4 行、64 个唯一 ID/SHA；smoke-dev 16 行、每类 1 行、16 个唯一 ID/SHA；二者 source SHA overlap=0、component overlap=0。
+- 必要保留意见：小类别集、小 dev、重复暴露与三种子限制已写入第 8 节；这些限制不阻止微实验，但限制结论外推。
