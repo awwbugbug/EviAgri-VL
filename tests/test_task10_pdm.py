@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "server"))
 
 from audit_task10_pdm import (
     assistant_token_spans,
+    assistant_token_spans_compatible,
     build_condition_messages,
     canonical_positive_target,
     find_token_subsequence,
@@ -30,6 +31,14 @@ class CharacterTokenizer:
             "input_ids": [ord(character) for character in text],
             "offset_mapping": [(index, index + 1) for index in range(len(text))],
         }
+
+
+class SlowCharacterTokenizer:
+    def __call__(self, text, *, add_special_tokens, return_offsets_mapping=False):
+        assert add_special_tokens is False
+        if return_offsets_mapping:
+            raise NotImplementedError("slow tokenizer has no offsets")
+        return {"input_ids": [ord(character) for character in text]}
 
 
 def _manifest_row(condition="original", image="original.png"):
@@ -97,6 +106,35 @@ def test_json_spans_identify_value_tokens_without_field_names():
     evidence_key_start = target.index('"evidence_present"')
     assert evidence_key_start not in spans.groups["evidence_present"]
     assert set().union(*map(set, spans.groups.values())) == set(range(len(target)))
+
+
+def test_fast_offsets_are_accepted_only_when_slow_model_token_ids_match():
+    target = canonical_positive_target(_manifest_row())
+
+    spans = assistant_token_spans_compatible(
+        SlowCharacterTokenizer(),
+        CharacterTokenizer(),
+        target,
+    )
+
+    assert spans.coverage == pytest.approx(1.0)
+
+    class MismatchedFastTokenizer(CharacterTokenizer):
+        def __call__(self, text, *, add_special_tokens, return_offsets_mapping):
+            result = super().__call__(
+                text,
+                add_special_tokens=add_special_tokens,
+                return_offsets_mapping=return_offsets_mapping,
+            )
+            result["input_ids"][0] += 1
+            return result
+
+    with pytest.raises(ValueError, match="token IDs differ"):
+        assistant_token_spans_compatible(
+            SlowCharacterTokenizer(),
+            MismatchedFastTokenizer(),
+            target,
+        )
 
 
 def test_refusal_value_tokens_are_grouped_for_null_target():

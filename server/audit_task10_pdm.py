@@ -123,6 +123,22 @@ def assistant_token_spans(tokenizer: Any, target_text: str) -> AssistantTokenSpa
     return AssistantTokenSpans(token_ids=token_ids, groups=groups, coverage=coverage)
 
 
+def assistant_token_spans_compatible(
+    model_input_tokenizer: Any,
+    offset_tokenizer: Any,
+    target_text: str,
+) -> AssistantTokenSpans:
+    """Use fast offsets only after proving exact IDs match model-input tokenization."""
+    spans = assistant_token_spans(offset_tokenizer, target_text)
+    input_ids = model_input_tokenizer(
+        target_text,
+        add_special_tokens=False,
+    )["input_ids"]
+    if list(map(int, input_ids)) != spans.token_ids:
+        raise ValueError("fast-offset and model-input token IDs differ")
+    return spans
+
+
 def find_token_subsequence(sequence: Iterable[int], subsequence: Iterable[int]) -> int:
     sequence_values = list(map(int, sequence))
     target = list(map(int, subsequence))
@@ -511,7 +527,12 @@ def run_pdm_audit(
 ) -> dict[str, Any]:
     from peft import PeftModel
     from qwen_vl_utils import process_vision_info
-    from transformers import AutoProcessor, BitsAndBytesConfig, Qwen2_5_VLForConditionalGeneration
+    from transformers import (
+        AutoProcessor,
+        AutoTokenizer,
+        BitsAndBytesConfig,
+        Qwen2_5_VLForConditionalGeneration,
+    )
 
     configuration = validate_pdm_run_configuration(
         adapter_paths,
@@ -531,6 +552,13 @@ def run_pdm_audit(
         use_fast=False,
         local_files_only=True,
     )
+    offset_tokenizer = AutoTokenizer.from_pretrained(
+        model_path,
+        use_fast=True,
+        local_files_only=True,
+    )
+    if not bool(getattr(offset_tokenizer, "is_fast", False)):
+        raise ValueError("PDM offset tokenizer must be a fast tokenizer")
     quantization = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
@@ -568,7 +596,11 @@ def run_pdm_audit(
         for family, conditions in families.items():
             original = conditions["original"]
             target_text = canonical_positive_target(original)
-            spans = assistant_token_spans(processor.tokenizer, target_text)
+            spans = assistant_token_spans_compatible(
+                processor.tokenizer,
+                offset_tokenizer,
+                target_text,
+            )
             for condition in CONDITIONS:
                 conditioned, unconditioned, same_target = build_condition_messages(
                     original, conditions[condition]
@@ -618,6 +650,11 @@ def run_pdm_audit(
         "manifest_sha256": sha256_file(manifest_path),
         "adapter_sha256": {str(seed): digest for seed, digest in adapter_hashes.items()},
         "model_path": str(model_path),
+        "tokenizer_contract": {
+            "model_input_tokenizer": type(processor.tokenizer).__name__,
+            "offset_tokenizer": type(offset_tokenizer).__name__,
+            "exact_target_token_ids_required": True,
+        },
     }
     observations_path = output_dir / "pdm_observations.jsonl"
     report_path = output_dir / "pdm_token_report.json"
