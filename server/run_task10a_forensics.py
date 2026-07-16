@@ -265,6 +265,22 @@ def _compact_pairs(pairs: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _pair_contract_status(pairs: dict[str, Any]) -> tuple[bool, list[str]]:
+    blockers = []
+    for group in PRIMARY_CONTROL_GROUPS:
+        report = pairs.get(group)
+        if not isinstance(report, dict):
+            blockers.append(f"missing_pair_report:{group}")
+            continue
+        if int(report.get("invalid_prediction_count", -1)) != 0:
+            blockers.append(f"invalid_predictions:{group}")
+        if float(report.get("original_positive_tpr", 0.0)) <= 0.0:
+            blockers.append(f"zero_correct_originals:{group}")
+        if float(report.get("strict_family_success", 0.0)) <= 0.0:
+            blockers.append(f"zero_strict_family_success:{group}")
+    return not blockers, blockers
+
+
 def decide_task10a(
     *,
     bbox: dict[str, Any],
@@ -272,14 +288,25 @@ def decide_task10a(
     pairs: dict[str, Any],
 ) -> dict[str, Any]:
     pdm_passed = bool(pdm.get("quality_passed") and pdm.get("visual_dependency_passed"))
+    pair_passed, pair_blockers = _pair_contract_status(pairs)
+    reuse_blockers = []
+    if not pdm_passed:
+        reuse_blockers.append("visual_dependency_failed")
+    if not pair_passed:
+        reuse_blockers.append("pair_contract_failed")
     return {
         "version": "task10a-decision-report-v1",
         "bbox_coordinate_status": bbox.get("status", BLOCKED_COORDINATE_PROTOCOL),
         "existing_verifier_visual_dependency_status": (
             "PASSED_VISUAL_DEPENDENCY" if pdm_passed else "FAILED_VISUAL_DEPENDENCY"
         ),
+        "existing_verifier_pair_contract_status": (
+            "PASSED_PAIR_CONTRACT" if pair_passed else "FAILED_PAIR_CONTRACT"
+        ),
+        "pair_contract_blockers": pair_blockers,
+        "verifier_reuse_blockers": reuse_blockers,
         "pair_forensic_findings": _compact_pairs(pairs),
-        "authorize_existing_verifier_for_task10d": pdm_passed,
+        "authorize_existing_verifier_for_task10d": pdm_passed and pair_passed,
         "authorize_task10b_planning": True,
         "authorize_task10b_execution": False,
         "authorize_training": False,

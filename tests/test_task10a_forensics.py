@@ -132,7 +132,24 @@ def _failing_pdm():
 
 
 def _pair_report():
-    return {"Control17": {"strict_family_success": 0.25}}
+    return {
+        group: {
+            "original_positive_tpr": 0.5,
+            "strict_family_success": 0.25,
+            "invalid_prediction_count": 0,
+        }
+        for group in ("Control17", "Control29", "Control43")
+    }
+
+
+def _failing_pair_report():
+    report = _pair_report()
+    report["Control29"] = {
+        "original_positive_tpr": 0.0,
+        "strict_family_success": 0.0,
+        "invalid_prediction_count": 7,
+    }
+    return report
 
 
 def test_preflight_verifies_six_groups_hashes_contract_and_adapter_lineage(tmp_path):
@@ -193,6 +210,19 @@ def test_decision_never_authorizes_training_or_task10b_execution():
     assert report["authorize_training"] is False
     assert report["authorize_task10b_execution"] is False
     assert report["task8_locked_set_read"] is False
+
+
+def test_visual_dependency_alone_cannot_authorize_contract_failing_verifier():
+    report = decide_task10a(
+        bbox=_passing_bbox(),
+        pdm=_passing_pdm(),
+        pairs=_failing_pair_report(),
+    )
+
+    assert report["existing_verifier_visual_dependency_status"] == "PASSED_VISUAL_DEPENDENCY"
+    assert report["existing_verifier_pair_contract_status"] == "FAILED_PAIR_CONTRACT"
+    assert report["authorize_existing_verifier_for_task10d"] is False
+    assert "pair_contract_failed" in report["verifier_reuse_blockers"]
 
 
 def test_orchestrator_writes_signed_outputs_and_refuses_existing_root(tmp_path):
