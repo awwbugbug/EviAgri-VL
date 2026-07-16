@@ -193,21 +193,27 @@ def _read_manifest(path: Path, limit: int | None) -> list[dict[str, Any]]:
     return rows
 
 
+def _load_runtime():
+    from PIL import Image
+    from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+
+    return Image, AutoProcessor, Qwen2_5_VLForConditionalGeneration
+
+
 def extract_features(
     *,
     manifest_path: Path,
     model_path: Path,
     output_root: Path,
     limit: int | None = None,
+    runtime_loader: Callable[[], tuple[Any, Any, Any]] = _load_runtime,
 ) -> dict[str, Any]:
-    from PIL import Image
-    from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
-
     destination = Path(output_root)
     ensure_new_directory(destination)
     _write_json_replace(destination / "status.json", {"state": "running", "stage": "load"})
     started = time.monotonic()
     try:
+        Image, AutoProcessor, Qwen2_5_VLForConditionalGeneration = runtime_loader()
         rows = _read_manifest(Path(manifest_path), limit)
         identity = _model_identity(Path(model_path))
         processor = AutoProcessor.from_pretrained(

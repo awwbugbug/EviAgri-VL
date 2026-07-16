@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "server"))
 from extract_task10b_features import (
     assert_frozen,
     build_feature_matrix,
+    extract_features,
     mean_pool_l2,
     write_feature_outputs,
 )
@@ -117,3 +118,26 @@ def test_write_feature_outputs_signs_files_and_refuses_overwrite(tmp_path):
             config={},
             model_identity={},
         )
+
+
+def test_extract_features_records_runtime_loader_failure(tmp_path):
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(json.dumps({"id": "x", "image": "/missing.jpg"}) + "\n")
+    output = tmp_path / "failed"
+
+    def broken_runtime_loader():
+        raise ModuleNotFoundError("transformers unavailable")
+
+    with pytest.raises(ModuleNotFoundError, match="transformers unavailable"):
+        extract_features(
+            manifest_path=manifest,
+            model_path=tmp_path / "model",
+            output_root=output,
+            limit=1,
+            runtime_loader=broken_runtime_loader,
+        )
+
+    assert json.loads((output / "status.json").read_text(encoding="utf-8"))["state"] == "failed"
+    failure = json.loads((output / "failure.json").read_text(encoding="utf-8"))
+    assert failure["state"] == "failed"
+    assert "transformers unavailable" in failure["error"]
