@@ -247,6 +247,16 @@ def run_protocol(
             actual_manifest_sha,
             expected_manifest_sha256=expected_manifest_sha256,
         )
+        missing_images = [
+            row["image"]
+            for split in ("train", "val", "dev")
+            for row in result[split]
+            if not Path(row["image"]).is_absolute() or not Path(row["image"]).is_file()
+        ]
+        if missing_images:
+            raise ValueError(
+                f"missing frozen image files: count={len(missing_images)} first={missing_images[0]}"
+            )
         model_hashes = _model_hash_report(model_path)
         for name in ("train", "val", "dev", "smoke_train", "smoke_dev"):
             _write_jsonl(output / f"{name}.jsonl", result[name])

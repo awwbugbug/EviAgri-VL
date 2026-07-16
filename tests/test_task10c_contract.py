@@ -127,7 +127,14 @@ def test_protocol_blocks_wrong_hash_counts_and_cross_split_components():
 
 def test_run_protocol_hashes_model_writes_completion_and_refuses_overwrite(tmp_path):
     source = tmp_path / "manifest.jsonl"
-    _write_jsonl(source, _rows())
+    rows = _rows()
+    image_root = tmp_path / "images"
+    image_root.mkdir()
+    for row in rows:
+        image = image_root / f"{row['id']}.jpg"
+        image.write_bytes(b"image")
+        row["image"] = str(image.resolve())
+    _write_jsonl(source, rows)
     model = tmp_path / "Qwen2___5-VL-3B-Instruct"
     model.mkdir()
     shard = model / "model-00001-of-00001.safetensors"
@@ -171,4 +178,19 @@ def test_run_protocol_records_block_without_partial_success(tmp_path):
 
     assert json.loads((output / "status.json").read_text(encoding="utf-8"))["state"] == "blocked"
     assert (output / "failure.json").is_file()
+    assert not (output / "completion.sha256").exists()
+
+
+def test_run_protocol_blocks_when_any_frozen_image_is_missing(tmp_path):
+    source = tmp_path / "manifest.jsonl"
+    _write_jsonl(source, _rows())
+    model = tmp_path / "Qwen2___5-VL-3B-Instruct"
+    model.mkdir()
+    (model / "model.safetensors").write_bytes(b"x")
+    output = tmp_path / "missing-images"
+
+    with pytest.raises(ValueError, match="missing frozen image"):
+        run_protocol(source, model, output, expected_manifest_sha256=_sha256(source))
+
+    assert json.loads((output / "status.json").read_text(encoding="utf-8"))["state"] == "blocked"
     assert not (output / "completion.sha256").exists()
