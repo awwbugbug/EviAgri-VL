@@ -471,6 +471,34 @@ def _adapter_weight_path(adapter_dir: Path) -> Path:
     return existing[0]
 
 
+def validate_pdm_run_configuration(
+    adapter_paths: dict[int, Path],
+    *,
+    smoke: bool,
+    family_limit: int | None,
+) -> dict[str, Any]:
+    seeds = tuple(sorted(adapter_paths))
+    if smoke:
+        if seeds != (29,):
+            raise ValueError("PDM smoke is restricted to Control seed 29")
+        if family_limit != 1:
+            raise ValueError("PDM smoke must use exactly one family")
+        return {
+            "seeds": seeds,
+            "family_limit": 1,
+            "scientific_decision_valid": False,
+        }
+    if seeds != CONTROL_SEEDS:
+        raise ValueError("formal PDM requires Control seeds 17, 29, and 43")
+    if family_limit is not None:
+        raise ValueError("formal PDM cannot limit families")
+    return {
+        "seeds": seeds,
+        "family_limit": None,
+        "scientific_decision_valid": True,
+    }
+
+
 def run_pdm_audit(
     *,
     model_path: Path,
@@ -478,16 +506,24 @@ def run_pdm_audit(
     manifest_path: Path,
     output_dir: Path,
     repetitions: int = 1000,
+    smoke: bool = False,
+    family_limit: int | None = None,
 ) -> dict[str, Any]:
     from peft import PeftModel
     from qwen_vl_utils import process_vision_info
     from transformers import AutoProcessor, BitsAndBytesConfig, Qwen2_5_VLForConditionalGeneration
 
-    if set(adapter_paths) != set(CONTROL_SEEDS):
-        raise ValueError("PDM requires Control adapters for seeds 17, 29, and 43")
+    configuration = validate_pdm_run_configuration(
+        adapter_paths,
+        smoke=smoke,
+        family_limit=family_limit,
+    )
+    seeds = configuration["seeds"]
     ensure_new_directory(output_dir)
     manifest = _read_jsonl(manifest_path)
     families = _family_conditions(manifest)
+    if configuration["family_limit"] is not None:
+        families = dict(list(families.items())[:configuration["family_limit"]])
     processor = AutoProcessor.from_pretrained(
         model_path,
         min_pixels=200704,
@@ -509,14 +545,14 @@ def run_pdm_audit(
         low_cpu_mem_usage=True,
         local_files_only=True,
     )
-    first_seed = CONTROL_SEEDS[0]
+    first_seed = seeds[0]
     model = PeftModel.from_pretrained(
         base_model,
         str(adapter_paths[first_seed]),
         adapter_name=f"control_{first_seed}",
         is_trainable=False,
     )
-    for seed in CONTROL_SEEDS[1:]:
+    for seed in seeds[1:]:
         model.load_adapter(str(adapter_paths[seed]), adapter_name=f"control_{seed}")
     model.eval()
 
@@ -526,7 +562,8 @@ def run_pdm_audit(
     }
     observations = []
     completed = 0
-    for seed in CONTROL_SEEDS:
+    expected_observations = len(seeds) * len(families) * len(CONDITIONS)
+    for seed in seeds:
         model.set_adapter(f"control_{seed}")
         for family, conditions in families.items():
             original = conditions["original"]
@@ -560,10 +597,23 @@ def run_pdm_audit(
                 if completed % 8 == 0:
                     write_json_new(
                         output_dir / f"progress_{completed:03d}.json",
-                        {"state": "running", "completed": completed, "expected": 288},
+                        {
+                            "state": "running",
+                            "completed": completed,
+                            "expected": expected_observations,
+                        },
                     )
 
-    report = summarize_pdm_records(observations, repetitions=repetitions)
+    report = summarize_pdm_records(
+        observations,
+        repetitions=repetitions,
+        expected_families=len(families),
+        seeds=seeds,
+    )
+    report["mode"] = "smoke" if smoke else "formal"
+    report["scientific_decision_valid"] = configuration["scientific_decision_valid"]
+    if smoke:
+        report["visual_dependency_passed"] = None
     report["inputs"] = {
         "manifest_sha256": sha256_file(manifest_path),
         "adapter_sha256": {str(seed): digest for seed, digest in adapter_hashes.items()},
@@ -587,17 +637,30 @@ def main() -> None:
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--adapter-17", type=Path, required=True)
-    parser.add_argument("--adapter-29", type=Path, required=True)
-    parser.add_argument("--adapter-43", type=Path, required=True)
+    parser.add_argument("--adapter-17", type=Path)
+    parser.add_argument("--adapter-29", type=Path)
+    parser.add_argument("--adapter-43", type=Path)
     parser.add_argument("--repetitions", type=int, default=1000)
+    parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--family-limit", type=int)
     args = parser.parse_args()
+    adapters = {
+        seed: path
+        for seed, path in (
+            (17, args.adapter_17),
+            (29, args.adapter_29),
+            (43, args.adapter_43),
+        )
+        if path is not None
+    }
     report = run_pdm_audit(
         model_path=args.model_path,
-        adapter_paths={17: args.adapter_17, 29: args.adapter_29, 43: args.adapter_43},
+        adapter_paths=adapters,
         manifest_path=args.manifest,
         output_dir=args.output,
         repetitions=args.repetitions,
+        smoke=args.smoke,
+        family_limit=args.family_limit,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
 

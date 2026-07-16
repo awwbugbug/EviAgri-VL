@@ -18,6 +18,7 @@ from audit_task10_pdm import (
     hellinger_from_logits,
     summarize_pdm_records,
     teacher_forced_group_pdm,
+    validate_pdm_run_configuration,
 )
 
 
@@ -247,3 +248,26 @@ def test_pdm_summary_blocks_missing_family_and_bad_normalization():
     assert report["visual_dependency_passed"] is False
     assert "expected_32_families_got_31" in report["quality_failures"]
     assert "normalization_error_above_1e-5" in report["quality_failures"]
+
+
+def test_formal_pdm_requires_all_three_preregistered_control_seeds(tmp_path):
+    adapters = {29: tmp_path / "adapter29"}
+
+    with pytest.raises(ValueError, match="formal PDM requires"):
+        validate_pdm_run_configuration(adapters, smoke=False, family_limit=None)
+
+
+def test_smoke_pdm_is_locked_to_seed29_and_one_family(tmp_path):
+    adapter = tmp_path / "adapter29"
+
+    result = validate_pdm_run_configuration(
+        {29: adapter},
+        smoke=True,
+        family_limit=1,
+    )
+
+    assert result == {"seeds": (29,), "family_limit": 1, "scientific_decision_valid": False}
+    with pytest.raises(ValueError, match="seed 29"):
+        validate_pdm_run_configuration({17: adapter}, smoke=True, family_limit=1)
+    with pytest.raises(ValueError, match="exactly one family"):
+        validate_pdm_run_configuration({29: adapter}, smoke=True, family_limit=2)
