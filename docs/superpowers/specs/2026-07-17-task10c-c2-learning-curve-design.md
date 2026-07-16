@@ -84,6 +84,8 @@ step 64 在完整 80 张 dev 上运行相同四条件，共 320 条 prediction/s
 - 三种子均值、样本标准差和最差 seed；
 - 最终有图条件的 conditional log-likelihood Top-1/3/5。
 
+最终决策中的单个 seed `image Macro-F1` 定义为 train/unseen 两个有图条件 Macro-F1 的算术平均；`no-image Macro-F1` 与 image schema validity 同理。D1 平均 Macro-F1 是三个 seed image Macro-F1 的算术平均，D0 Macro-F1 是 Base 两个有图 prompt 条件的算术平均。每 seed 的 paired bootstrap 以 80 个 source image 为重采样单位，同一 source 的两个 prompt 必须一起进入样本；pooled bootstrap 每次重采样同一组 source，并在该样本上先计算三个 seed 的 D1 均值，再减 D0，禁止把同一 source 的 seed/prompt 行误当作独立样本。
+
 ### 6.2 非评分法医指标
 
 为区分“没有学会类别”和“学会类别但格式错误”，额外只读报告：
