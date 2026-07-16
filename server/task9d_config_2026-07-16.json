@@ -1,0 +1,36 @@
+{
+  "version": "task9d-static-qlora-v1",
+  "seeds": [17, 29, 43],
+  "variants": ["A", "B", "C"],
+  "model_path": "/root/autodl-tmp/EviAgriDiag/models/Qwen/Qwen2___5-VL-3B-Instruct",
+  "prepared_root": "/root/autodl-tmp/EviAgriDiag/experiments/task9d/2026-07-16/preparation/protocol",
+  "experiment_root": "/root/autodl-tmp/EviAgriDiag/experiments/task9d/2026-07-16",
+  "lora": {
+    "r": 16,
+    "alpha": 32,
+    "dropout": 0.05,
+    "targets": ["q_proj", "v_proj"]
+  },
+  "quantization": {
+    "type": "nf4",
+    "double_quant": true,
+    "compute_dtype": "bfloat16"
+  },
+  "vision": {
+    "min_pixels": 200704,
+    "max_pixels": 401408
+  },
+  "training": {
+    "max_length": 1024,
+    "batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "max_steps": 192,
+    "learning_rate": 0.0001,
+    "early_stopping": false,
+    "eval_steps": [64, 128, 192]
+  },
+  "decoding": {
+    "do_sample": false,
+    "max_new_tokens": 512
+  }
+}

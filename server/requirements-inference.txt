@@ -1,0 +1,7 @@
+accelerate==1.6.0
+modelscope==1.25.0
+pillow==11.2.1
+qwen-vl-utils==0.0.8
+requests==2.32.3
+safetensors==0.5.3
+transformers==4.51.3

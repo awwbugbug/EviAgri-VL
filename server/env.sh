@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+export EVIAGRI_ROOT=/root/autodl-tmp/EviAgriDiag
+export MODEL_ROOT="$EVIAGRI_ROOT/models"
+export MODEL_MANIFEST="$EVIAGRI_ROOT/models/model_download.json"
+export OUTPUT_DIR="$EVIAGRI_ROOT/outputs"
+export LOG_DIR="$EVIAGRI_ROOT/logs"
+export HF_HOME="$EVIAGRI_ROOT/cache/huggingface"
+export MODELSCOPE_CACHE="$EVIAGRI_ROOT/cache/modelscope"
+export PIP_CACHE_DIR="$EVIAGRI_ROOT/cache/pip"
+export TMPDIR="$EVIAGRI_ROOT/tmp"
+export PYTHONUNBUFFERED=1

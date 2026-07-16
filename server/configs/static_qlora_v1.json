@@ -1,0 +1,59 @@
+{
+  "seed": 20260714,
+  "data_seed": 20260714,
+  "model_path": "/root/autodl-tmp/EviAgriDiag/models/Qwen/Qwen2___5-VL-3B-Instruct",
+  "source_data_root": "/root/autodl-tmp/EviAgriDiag/datasets/derived/eviagridiag_detection_v1",
+  "mixed_data_root": "/root/autodl-tmp/EviAgriDiag/datasets/derived/static_qlora_v1",
+  "experiment_root": "/root/autodl-tmp/EviAgriDiag/experiments/static_qlora_v1",
+  "lora": {
+    "r": 16,
+    "alpha": 32,
+    "dropout": 0.05
+  },
+  "lora_target_regex": "^model\\.layers\\.\\d+\\.self_attn\\.(q_proj|k_proj|v_proj|o_proj)$",
+  "quantization": {
+    "type": "nf4",
+    "double_quant": true,
+    "compute_dtype": "bfloat16"
+  },
+  "vision": {
+    "min_pixels": 200704,
+    "max_pixels": 401408
+  },
+  "data": {
+    "train_positive": 13652,
+    "train_null": 6826,
+    "val_positive": 1526,
+    "val_null": 1526,
+    "test_positive": 3798,
+    "test_null": 3798
+  },
+  "training": {
+    "max_length": 1024,
+    "per_device_train_batch_size": 1,
+    "gradient_accumulation_steps": 16,
+    "num_train_epochs": 1,
+    "learning_rate": 0.0002,
+    "lr_scheduler_type": "cosine",
+    "warmup_ratio": 0.03,
+    "weight_decay": 0.01,
+    "max_grad_norm": 1.0,
+    "optim": "paged_adamw_8bit",
+    "bf16": true,
+    "tf32": true,
+    "gradient_checkpointing": true,
+    "use_cache": false,
+    "logging_steps": 10,
+    "eval_steps": 250,
+    "save_steps": 250,
+    "save_total_limit": 2,
+    "dataloader_num_workers": 2
+  },
+  "smoke": {
+    "positive": 24,
+    "null": 8,
+    "max_steps": 2,
+    "gradient_accumulation_steps": 2,
+    "peak_vram_limit_gb": 30.0
+  }
+}

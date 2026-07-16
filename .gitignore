@@ -1,0 +1,67 @@
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+credentials.json
+secrets.json
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Editors and OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Raw/local datasets and transfer staging
+/本地数据集/
+/transfer_staging/
+/tmp/
+/datasets/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Model weights, adapters, checkpoints, and generated training state
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+checkpoint-*/
+checkpoints/
+wandb/
+runs/
+
+# Local experiment artifacts are retained outside Git; compact conclusions
+# belong in docs/ and 关键记忆/.
+/artifacts/
+*.log
+
+# Reference papers are local research inputs, not repository source.
+*.pdf
+/关键记忆/项目关键聊天信息/论文源_1/
+/关键记忆/项目关键聊天信息/论文源_2/
+
+# Historical server preparation plan contains connection details. Keep it
+# locally until a sanitized replacement is written.
+/docs/superpowers/plans/2026-07-10-server-mvp-preparation.md
+
