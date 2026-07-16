@@ -70,7 +70,7 @@ def mean_active_token_logprob(
         raise ValueError("no active answer tokens")
     if not bool(torch.isfinite(token_log_probs[active_mask]).all()):
         raise ValueError("non-finite active answer-token log probability")
-    return (token_log_probs * active_mask).sum(dim=1) / counts
+    return token_log_probs.masked_fill(~active_mask, 0.0).sum(dim=1) / counts
 
 
 def rank_candidate_scores(scores: dict[str, float], *, truth: str) -> dict[str, Any]:
