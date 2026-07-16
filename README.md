@@ -28,3 +28,6 @@
 
 详细规格见：`docs/superpowers/specs/2026-07-17-task10-micro-first-design.md`。
 
+## Task 10A法医关口
+
+Task 10A是基于冻结v2.2 dev协议的无训练、fail-closed审计。它在任何Task 10B规划前检查bbox坐标链、token级image/no-image PDM-H和family级因果一致性。服务器正式入口为`server/run_task10a_forensics.sh`；脚本拒绝复用既有输出目录，且不会授权训练或自动执行Task 10B。
