@@ -5,7 +5,7 @@ FEATURE_PY=/root/miniconda3/envs/eviagri/bin/python
 EVAL_PY=/root/miniconda3/bin/python
 PROJECT=/root/EviAgri-VL/server
 TASK10B=/root/autodl-tmp/EviAgriDiag/experiments/task10_micro_first/2026-07-17/task10b_v2
-ROOT=/root/autodl-tmp/EviAgriDiag/experiments/task11_confidence_router/2026-07-23/task11a
+ROOT=${TASK11A_ROOT:-/root/autodl-tmp/EviAgriDiag/experiments/task11_confidence_router/2026-07-23/task11a}
 STRESS="$ROOT/stress_features"
 EVALUATION="$ROOT/evaluation"
 MODEL=/root/autodl-tmp/EviAgriDiag/models/Qwen/Qwen2___5-VL-3B-Instruct
@@ -15,6 +15,7 @@ test -d "$TASK10B/protocol"
 test -d "$TASK10B/formal_features"
 test ! -e "$ROOT"
 mkdir -p "$ROOT"
+echo 'stage=verify_signed_inputs'
 
 (
   cd "$TASK10B/protocol"
@@ -27,6 +28,7 @@ mkdir -p "$ROOT"
   test "$observed" = "$EXPECTED_BASE_SHA"
 )
 
+echo 'stage=extract_stress_features'
 "$FEATURE_PY" "$PROJECT/extract_task11a_stress_features.py" \
   --source-manifest "$TASK10B/protocol/manifest.jsonl" \
   --model-path "$MODEL" \
@@ -36,6 +38,7 @@ mkdir -p "$ROOT"
   sha256sum -c completion.sha256
 )
 
+echo 'stage=evaluate_confidence_router'
 "$EVAL_PY" "$PROJECT/evaluate_task11a_confidence_router.py" \
   --base-feature-root "$TASK10B/formal_features" \
   --stress-feature-root "$STRESS" \
@@ -45,3 +48,4 @@ mkdir -p "$ROOT"
   cd "$EVALUATION"
   sha256sum -c completion.sha256
 )
+echo 'stage=completed'

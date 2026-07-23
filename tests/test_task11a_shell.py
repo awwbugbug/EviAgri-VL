@@ -10,6 +10,8 @@ def test_task11a_shell_is_fail_closed_and_reuses_signed_features():
     )
     assert "set -euo pipefail" in text
     assert "test ! -e \"$ROOT\"" in text
+    assert "TASK11A_ROOT:-" in text
+    assert "stage=verify_signed_inputs" in text
     assert "sha256sum -c completion.sha256" in text
     assert "EXPECTED_BASE_SHA" in text
     assert "extract_task11a_stress_features.py" in text
