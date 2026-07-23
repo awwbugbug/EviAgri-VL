@@ -128,6 +128,7 @@ def extract_stress_features(
                     torch.cuda.max_memory_allocated(visual_parameter.device)
                 ),
             },
+            summary_version="task11a-stress-feature-summary-1",
         )
         _write_json_replace(destination / "status.json", {"state": "completed", "stage": "done"})
         return summary

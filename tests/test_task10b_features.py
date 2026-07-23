@@ -109,6 +109,7 @@ def test_write_feature_outputs_signs_files_and_refuses_overwrite(tmp_path):
     assert summary["state"] == "completed"
     assert summary["feature_count"] == 2
     assert summary["feature_dimension"] == 2
+    assert summary["version"] == "task10b-v2-feature-summary-1"
     assert (output / "completion.sha256").is_file()
     with pytest.raises(FileExistsError):
         write_feature_outputs(

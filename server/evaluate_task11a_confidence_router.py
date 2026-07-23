@@ -197,6 +197,7 @@ def evaluate_seed(
                 "class_id": int(truth),
                 "confidence": float(confidence),
                 "accepted": bool(keep),
+                "forced_prediction": int(prediction),
                 "payload": serialized_payload(payload),
             }
         )
@@ -285,14 +286,31 @@ def _bootstrap(seed_results: dict[int, dict[str, Any]], repetitions: int) -> dic
             )
             forced = np.asarray(
                 [
-                    json.loads(by_seed[seed][source]["original"]["payload"])["diagnosis"]["pest_id"]
+                    int(by_seed[seed][source]["original"]["forced_prediction"])
+                    for source in selected
+                ]
+            )
+            confidence = np.asarray(
+                [
+                    int(by_seed[seed][source]["original"]["forced_prediction"])
                     if by_seed[seed][source]["original"]["accepted"]
                     else -1
                     for source in selected
                 ]
             )
-            # The delta is already reported exactly per seed; bootstrap focuses on retained F1.
-            deltas.append(float(f1_score(truth, forced, labels=labels, average="macro", zero_division=0)))
+            forced_f1 = float(
+                f1_score(truth, forced, labels=labels, average="macro", zero_division=0)
+            )
+            confidence_f1 = float(
+                f1_score(
+                    truth,
+                    confidence,
+                    labels=labels,
+                    average="macro",
+                    zero_division=0,
+                )
+            )
+            deltas.append((forced_f1, confidence_f1))
             for condition in CONDITIONS:
                 fprs[condition].append(
                     float(
@@ -302,7 +320,9 @@ def _bootstrap(seed_results: dict[int, dict[str, Any]], repetitions: int) -> dic
                     )
                 )
         return {
-            "confidence_macro_f1": mean(deltas),
+            "forced_macro_f1": mean(value[0] for value in deltas),
+            "confidence_macro_f1": mean(value[1] for value in deltas),
+            "macro_f1_delta": mean(value[1] - value[0] for value in deltas),
             **{f"{condition}_fpr": mean(values) for condition, values in fprs.items()},
         }
 

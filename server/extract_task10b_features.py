@@ -104,6 +104,7 @@ def _write_feature_payload(
     config: dict[str, Any],
     model_identity: dict[str, str],
     run_metadata: dict[str, Any] | None = None,
+    summary_version: str = "task10b-v2-feature-summary-1",
 ) -> dict[str, Any]:
     destination = Path(output_root)
     if matrix.ndim != 2 or matrix.shape[0] != len(feature_rows) or not len(feature_rows):
@@ -123,7 +124,7 @@ def _write_feature_payload(
     }
     write_json_new(destination / "config.snapshot.json", snapshot)
     summary = {
-        "version": "task10b-v2-feature-summary-1",
+        "version": summary_version,
         "state": "completed",
         "feature_count": int(matrix.shape[0]),
         "feature_dimension": int(matrix.shape[1]),
@@ -155,6 +156,7 @@ def write_feature_outputs(
     config: dict[str, Any],
     model_identity: dict[str, str],
     run_metadata: dict[str, Any] | None = None,
+    summary_version: str = "task10b-v2-feature-summary-1",
 ) -> dict[str, Any]:
     destination = Path(output_root)
     ensure_new_directory(destination)
@@ -166,6 +168,7 @@ def write_feature_outputs(
         config=config,
         model_identity=model_identity,
         run_metadata=run_metadata,
+        summary_version=summary_version,
     )
     write_json_new(destination / "status.json", {"state": "completed", "stage": "features"})
     return summary
