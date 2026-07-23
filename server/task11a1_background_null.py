@@ -15,8 +15,18 @@ from task10_audit_common import ensure_new_directory, sha256_file, write_json_ne
 
 
 SPLIT_CONFIG = {
-    "val": {"crop_size": 64, "margin_fraction": 0.05, "grid": 17},
-    "dev": {"crop_size": 72, "margin_fraction": 0.08, "grid": 19},
+    "val": {
+        "crop_size": 60,
+        "margin_fraction": 0.05,
+        "grid": 17,
+        "bottom_exclusion_fraction": 0.10,
+    },
+    "dev": {
+        "crop_size": 72,
+        "margin_fraction": 0.08,
+        "grid": 19,
+        "bottom_exclusion_fraction": 0.12,
+    },
 }
 BANDS = ("head", "medium", "tail")
 
@@ -99,6 +109,7 @@ def candidate_crops(
     boxes: list[tuple[float, float, float, float]],
     crop_size: int,
     grid: int,
+    bottom_exclusion_fraction: float = 0.0,
 ) -> list[tuple[int, int, int, int]]:
     if crop_size <= 0 or grid < 2 or width < crop_size or height < crop_size:
         return []
@@ -108,6 +119,8 @@ def candidate_crops(
         for ix in range(grid):
             left = round((width - crop_size) * ix / (grid - 1))
             crop = (left, top, left + crop_size, top + crop_size)
+            if crop[3] > (1.0 - bottom_exclusion_fraction) * height:
+                continue
             if all(not intersects(crop, box) for box in boxes):
                 candidates.append(crop)
     return sorted(set(candidates))
@@ -150,6 +163,7 @@ def build_rows(
             boxes=boxes,
             crop_size=int(config["crop_size"]),
             grid=int(config["grid"]),
+            bottom_exclusion_fraction=float(config["bottom_exclusion_fraction"]),
         )
         common = {
             **row,
@@ -161,6 +175,7 @@ def build_rows(
             "crop_size": int(config["crop_size"]),
             "margin_fraction": float(config["margin_fraction"]),
             "candidate_grid": int(config["grid"]),
+            "bottom_exclusion_fraction": float(config["bottom_exclusion_fraction"]),
             "candidate_count": len(candidates),
         }
         if not candidates:

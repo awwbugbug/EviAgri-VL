@@ -30,6 +30,19 @@ def test_candidate_selection_is_deterministic():
     )
 
 
+def test_bottom_exclusion_removes_watermark_zone_candidates():
+    candidates = candidate_crops(
+        width=100,
+        height=100,
+        boxes=[],
+        crop_size=20,
+        grid=5,
+        bottom_exclusion_fraction=0.1,
+    )
+    assert candidates
+    assert all(crop[3] <= 90 for crop in candidates)
+
+
 def test_smoke_selection_is_balanced_and_does_not_cross_split():
     rows = []
     for split in ("val", "dev"):
