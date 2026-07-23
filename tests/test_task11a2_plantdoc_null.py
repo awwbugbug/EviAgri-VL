@@ -14,9 +14,9 @@ def test_git_blob_sha_matches_known_git_object():
 
 def test_selection_is_deterministic_and_ignores_non_images():
     entries = [
-        {"type": "file", "name": f"{index}.jpg", "download_url": f"u{index}", "sha": str(index)}
+        {"type": "file", "name": f"{index}.jpg", "path": f"x/{index}.jpg", "sha": str(index)}
         for index in range(8)
-    ] + [{"type": "file", "name": "README.md", "download_url": "x", "sha": "x"}]
+    ] + [{"type": "file", "name": "README.md", "path": "x/README.md", "sha": "x"}]
     first = deterministic_selection(entries, commit="a" * 40, class_name="Apple leaf", count=4)
     second = deterministic_selection(entries, commit="a" * 40, class_name="Apple leaf", count=4)
     assert first == second

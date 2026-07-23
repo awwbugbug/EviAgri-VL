@@ -5,10 +5,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import urllib.parse
-import urllib.request
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from PIL import Image, ImageDraw
 
@@ -31,15 +31,6 @@ HEALTHY_CLASSES = (
 IMAGES_PER_CLASS = 4
 
 
-def _http_get(url: str) -> bytes:
-    request = urllib.request.Request(
-        url,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": "EviAgri-VL"},
-    )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return response.read()
-
-
 def git_blob_sha1(payload: bytes) -> str:
     header = f"blob {len(payload)}\0".encode("ascii")
     return hashlib.sha1(header + payload).hexdigest()
@@ -53,7 +44,6 @@ def deterministic_selection(
         for entry in entries
         if entry.get("type") == "file"
         and str(entry.get("name", "")).lower().endswith((".jpg", ".jpeg", ".png"))
-        and entry.get("download_url")
         and entry.get("sha")
     ]
     images.sort(
@@ -74,34 +64,82 @@ def _read_task10b_hashes(feature_rows: Path) -> set[str]:
     }
 
 
+def _git(repository: Path, *arguments: str, text: bool = False) -> bytes | str:
+    completed = subprocess.run(
+        ["git", "-C", str(repository), *arguments],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=text,
+    )
+    return completed.stdout
+
+
+def _clone_source(repository: Path) -> str:
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+            "--filter=blob:none",
+            "--no-checkout",
+            f"https://github.com/{REPOSITORY}.git",
+            str(repository),
+        ],
+        check=True,
+    )
+    commit = str(_git(repository, "rev-parse", "HEAD", text=True)).strip()
+    if len(commit) != 40:
+        raise ValueError("invalid pinned PlantDoc commit")
+    return commit
+
+
+def _tree_entries(repository: Path, commit: str, class_name: str) -> list[dict[str, str]]:
+    directory = f"test/{class_name}"
+    payload = bytes(
+        _git(repository, "ls-tree", "-r", "-z", commit, "--", directory)
+    )
+    entries = []
+    for record in payload.split(b"\0"):
+        if not record:
+            continue
+        metadata, encoded_path = record.split(b"\t", 1)
+        mode, object_type, object_sha = metadata.decode("ascii").split(" ")
+        path = encoded_path.decode("utf-8", errors="strict")
+        entries.append(
+            {
+                "type": "file" if object_type == "blob" else object_type,
+                "name": Path(path).name,
+                "path": path,
+                "sha": object_sha,
+                "mode": mode,
+            }
+        )
+    return entries
+
+
 def prepare_dataset(
     *,
     output_root: Path,
     task10b_feature_rows: Path,
-    http_get: Callable[[str], bytes] = _http_get,
 ) -> dict[str, Any]:
     destination = Path(output_root)
     ensure_new_directory(destination)
     images_root = destination / "images"
     images_root.mkdir()
-    api = f"https://api.github.com/repos/{REPOSITORY}"
-    commit_payload = json.loads(http_get(f"{api}/commits/master"))
-    commit = str(commit_payload.get("sha", ""))
-    if len(commit) != 40:
-        raise ValueError("invalid pinned PlantDoc commit")
+    source_repository = destination / "source_repository"
+    commit = _clone_source(source_repository)
     task10b_hashes = _read_task10b_hashes(Path(task10b_feature_rows))
     rows = []
     panels = []
     for class_name in HEALTHY_CLASSES:
-        encoded = urllib.parse.quote(f"test/{class_name}", safe="/")
-        entries = json.loads(http_get(f"{api}/contents/{encoded}?ref={commit}"))
-        if not isinstance(entries, list):
-            raise ValueError(f"invalid GitHub directory payload: {class_name}")
+        entries = _tree_entries(source_repository, commit, class_name)
         chosen = deterministic_selection(
             entries, commit=commit, class_name=class_name, count=IMAGES_PER_CLASS
         )
         for entry in chosen:
-            payload = http_get(str(entry["download_url"]))
+            payload = bytes(_git(source_repository, "show", f"{commit}:{entry['path']}"))
             if git_blob_sha1(payload) != str(entry["sha"]):
                 raise ValueError(f"Git blob SHA mismatch: {entry['name']}")
             file_sha256 = hashlib.sha256(payload).hexdigest()
@@ -126,7 +164,11 @@ def prepare_dataset(
                     "healthy_class": class_name,
                     "source_split": "test",
                     "source_name": str(entry["name"]),
-                    "source_url": str(entry["download_url"]),
+                    "source_path": str(entry["path"]),
+                    "source_url": (
+                        f"https://github.com/{REPOSITORY}/blob/{commit}/"
+                        + urllib.parse.quote(str(entry["path"]), safe="/")
+                    ),
                     "git_blob_sha1": str(entry["sha"]),
                     "image_sha256": file_sha256,
                     "image": str(path),
@@ -142,9 +184,7 @@ def prepare_dataset(
             panels.append(panel)
     if len(rows) != len(HEALTHY_CLASSES) * IMAGES_PER_CLASS:
         raise AssertionError("unexpected PlantDoc micro cardinality")
-    license_payload = http_get(
-        f"https://raw.githubusercontent.com/{REPOSITORY}/{commit}/LICENSE.txt"
-    )
+    license_payload = bytes(_git(source_repository, "show", f"{commit}:LICENSE.txt"))
     (destination / "LICENSE.txt").write_bytes(license_payload)
     with (destination / "manifest.jsonl").open("x", encoding="utf-8", newline="\n") as handle:
         for row in rows:
@@ -162,6 +202,7 @@ def prepare_dataset(
         "state": "completed",
         "repository": REPOSITORY,
         "commit": commit,
+        "acquisition": "git shallow partial clone plus pinned blob reads",
         "license": "CC-BY-4.0",
         "source_split": "test",
         "healthy_classes": list(HEALTHY_CLASSES),
