@@ -8,7 +8,6 @@ from typing import Any, Iterable
 
 import numpy as np
 from PIL import Image, ImageFilter
-from sklearn.metrics import balanced_accuracy_score
 
 
 SEEDS = (17, 29, 43)
@@ -103,10 +102,16 @@ def select_threshold(
         raise ValueError("threshold selection requires original and null samples")
     truth = np.concatenate([correct, np.zeros(len(null), dtype=bool)]).astype(int)
     confidence = np.concatenate([original, null])
+    positives = truth == 1
+    negatives = ~positives
+    if not positives.any() or not negatives.any():
+        raise ValueError("threshold selection requires both accept and reject labels")
     best = None
     for value in np.linspace(0.0, 1.0, 101):
         predicted = (confidence >= value).astype(int)
-        score = float(balanced_accuracy_score(truth, predicted))
+        true_positive_rate = float((predicted[positives] == 1).mean())
+        true_negative_rate = float((predicted[negatives] == 0).mean())
+        score = (true_positive_rate + true_negative_rate) / 2.0
         candidate = (score, -float(value))
         if best is None or candidate > best[0]:
             best = (candidate, float(value), score)
