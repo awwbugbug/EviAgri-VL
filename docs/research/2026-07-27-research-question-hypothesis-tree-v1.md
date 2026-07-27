@@ -73,5 +73,6 @@ coverage and supported diagnosis while reducing PlantDoc FPR from 90% to 0%
 and PlantSeg FPR from 81.25% to 18.75%. It failed the preregistered PlantSeg
 FPR <10% gate, so the decision is `H3_BLOCK_H2_PRIORITY`. This is useful H3
 signal but insufficient safety evidence; it does not authorize learned gating.
-The next branch is a literature/red-team reset followed by one frozen H2
-full-frame token-selection micro study.
+The required literature/red-team reset is complete. The next branch is Task14A,
+an annotation-only oracle test of region pooling within one full-frame Qwen
+encoding, with `GR-GG` as the primary same-width comparison.

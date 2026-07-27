@@ -20,7 +20,7 @@
 
 ## Next Task
 
-Perform the hypothesis-tree literature/red-team reset required after the mechanism-study sequence, then freeze one Task14A H2 micro study: full-frame token selection or weighting without crop replacement or a second encoder. It must use fresh exploratory samples, preserve global context, and run before any larger training.
+Task14A should run the frozen H2 oracle discriminator described in `2026-07-27-h2-token-selection-literature-reset.md`: one full-frame Qwen encoding, spatial token pooling inside GT bbox/mask, and `GR-GG` as the primary same-width comparison. It must use a fresh family-safe exploratory batch. Success authorizes only a tiny learned-selector prototype; failure does not authorize another module or larger training.
 
 ## Storage Boundaries
 

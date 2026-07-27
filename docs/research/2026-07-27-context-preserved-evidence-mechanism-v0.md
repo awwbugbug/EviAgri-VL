@@ -57,3 +57,7 @@ PlantSeg FPR was 18.75%, above the frozen <10% requirement. H3 therefore remains
 informative but fails the safety gate. Learned fusion/gating is blocked; the
 next mechanism discriminator must preserve the full frame and test H2 token
 selection after a literature/red-team reset.
+
+The reset selected Task14A: an annotation-only, single-encoding oracle test of
+global plus in-frame region tokens against a same-width global control. No
+learned selector is implemented unless this upper bound is safe.
