@@ -1,0 +1,26 @@
+{
+  "version": "task11b0-query-rep-smoke-protocol-v1",
+  "query": "Determine whether the image contains a visible agricultural pest. Base the decision only on image pixels.",
+  "layer_rule": "output_after_ceil_3L_over_4_blocks",
+  "processor_use_fast": false,
+  "blank_rgb": [127, 127, 127],
+  "samples": [
+    {"kind": "ip102_positive", "id": "77a775a52502d7cd1d610210fad239e3", "class_id": 9, "image_sha256": "55cbd6fccbcc16242d02d7648089c2c212cd7bb39962dac32c3f872da6fedcdf"},
+    {"kind": "ip102_positive", "id": "7c50761ced8251fe80dcc7dc10499f86", "class_id": 22, "image_sha256": "4908b026bf93561407f8e91308f33dd90ff49f3bb0e9b41bcbfb9c09f9062878"},
+    {"kind": "ip102_positive", "id": "2b7ca00ee074b4c08e3eeeae4e011295", "class_id": 82, "image_sha256": "0b8cfa6821412c5d6e7e8cc7a24b15753ced6b2860f302bf813843151582d79d"},
+    {"kind": "ip102_positive", "id": "2d8d67922ca0ab684e23179d6852fd2b", "class_id": 87, "image_sha256": "121684baa7f557031efd3ad2797bbc56d9b6dfbd762f4a9a7fc53ad4a8798316"},
+    {"kind": "plantseg_real_null", "id": "c379b61ffa10b14b", "image_sha256": "c379b61ffa10b14bd0bdd035d5d20c569768f197b85c47a9bda617785768d513"},
+    {"kind": "plantseg_real_null", "id": "ed4cfb527f413d56", "image_sha256": "ed4cfb527f413d5652e8c04319764f5e1320fb5b2687ed13de0a1607a4280bf4"},
+    {"kind": "plantseg_real_null", "id": "92192a2a1c7389d0", "image_sha256": "92192a2a1c7389d0304893e6e6047634b3f009f8caabf01168f988084ce53fec"},
+    {"kind": "plantseg_real_null", "id": "3ab29dd04e9342c6", "image_sha256": "3ab29dd04e9342c6cfd13397932389e0860a1d89849e27708c99f03e47857355"}
+  ],
+  "gates": {
+    "expected_layers": 36,
+    "expected_hidden_size": 2048,
+    "expected_layer_output_index": 27,
+    "expected_query_tokens": 19,
+    "duplicate_max_abs_le": 0.000001,
+    "median_original_blank_cosine_distance_ge": 0.0001,
+    "minimum_original_blank_l2_ge": 0.001
+  }
+}
