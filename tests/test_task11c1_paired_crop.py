@@ -44,7 +44,7 @@ def test_decision_blocks_null_harm():
 
 def test_shell_is_single_attempt_and_forbids_large_methods():
     text=(ROOT/"server"/"run_task11c1_paired_crop_probe.sh").read_text(encoding="utf-8")
-    assert "task11c1_paired_crop_probe/2026-07-27/protocol_v1/attempt_01" in text
+    assert "task11c1_paired_crop_probe/2026-07-27/protocol_v1/attempt_02" in text
     assert "features_full" in text and "features_local" in text and "--repetitions 1000" in text
     for forbidden in ("shutdown","poweroff","Task8","7B","SAM2","qlora"):
         assert forbidden not in text

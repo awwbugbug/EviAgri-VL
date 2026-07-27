@@ -9,7 +9,7 @@ BASE_MANIFEST=/root/autodl-tmp/EviAgriDiag/experiments/task10_micro_first/2026-0
 PLANTSEG_MANIFEST=/root/autodl-tmp/EviAgriDiag/experiments/task11a3_plantseg_real_null/2026-07-27/formal_v3/dataset/manifest.jsonl
 CROP_ROOT=/root/autodl-tmp/EviAgriDiag/experiments/task11c0_local_crop/2026-07-27/protocol_v2/attempt_01
 BASE_FEATURES=/root/autodl-tmp/EviAgriDiag/experiments/task10_micro_first/2026-07-17/task10b_v2/formal_features
-ROOT=/root/autodl-tmp/EviAgriDiag/experiments/task11c1_paired_crop_probe/2026-07-27/protocol_v1/attempt_01
+ROOT=/root/autodl-tmp/EviAgriDiag/experiments/task11c1_paired_crop_probe/2026-07-27/protocol_v1/attempt_02
 
 test ! -e "$ROOT"
 test -x "$PY_BASE" && test -x "$PY_VISION" && test -d "$MODEL"
@@ -39,4 +39,3 @@ done
   --local-root "$ROOT/features_local" --pair-root "$ROOT/pairs" \
   --output-root "$ROOT/evaluation" --repetitions 1000
 (cd "$ROOT/evaluation" && sha256sum -c completion.sha256)
-
