@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Read `README.md`, then `docs/research/CURRENT_STATE.md` before changing code or launching experiments. Experiment, protocol, training, inference, and evaluation code lives in `server/`; local utilities live in `scripts/`; tests live in `tests/`. Frozen specifications are under `docs/superpowers/`, active hypotheses under `docs/research/`, and compact decisions in dated `关键记忆/` files. Datasets, weights, PDFs, staging files, and generated results stay outside Git in ignored directories such as `本地数据集/` and `artifacts/`.
+Read `docs/research/CURRENT_STATE.md` before changing code or launching experiments. Read `README.md` only for first-time orientation or public project context. Experiment, protocol, training, inference, and evaluation code lives in `server/`; local utilities live in `scripts/`; tests live in `tests/`. Frozen specifications are under `docs/superpowers/`, active hypotheses under `docs/research/`, and compact decisions in dated `关键记忆/` files. Datasets, weights, PDFs, staging files, and generated results stay outside Git in ignored directories such as `本地数据集/` and `artifacts/`.
 
 ## Build, Test, and Development Commands
 
