@@ -220,6 +220,8 @@ def extract_features(
     model_path: Path,
     output_root: Path,
     limit: int | None = None,
+    config_version: str = "task10b-v2-feature-config-1",
+    summary_version: str = "task10b-v2-feature-summary-1",
     runtime_loader: Callable[[], tuple[Any, Any, Any]] = _load_runtime,
 ) -> dict[str, Any]:
     destination = Path(output_root)
@@ -279,7 +281,7 @@ def extract_features(
             output_root=destination,
             manifest_path=Path(manifest_path),
             config={
-                "version": "task10b-v2-feature-config-1",
+                "version": config_version,
                 "model_path": str(Path(model_path)),
                 "min_pixels": MIN_PIXELS,
                 "max_pixels": MAX_PIXELS,
@@ -291,6 +293,7 @@ def extract_features(
                 "elapsed_seconds": time.monotonic() - started,
                 "peak_vram_bytes": int(torch.cuda.max_memory_allocated(visual_parameter.device)),
             },
+            summary_version=summary_version,
         )
         _write_json_replace(destination / "status.json", {"state": "completed", "stage": "done"})
         return summary
@@ -309,12 +312,16 @@ def main() -> None:
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--config-version", default="task10b-v2-feature-config-1")
+    parser.add_argument("--summary-version", default="task10b-v2-feature-summary-1")
     arguments = parser.parse_args()
     summary = extract_features(
         manifest_path=arguments.manifest,
         model_path=arguments.model_path,
         output_root=arguments.output_root,
         limit=arguments.limit,
+        config_version=arguments.config_version,
+        summary_version=arguments.summary_version,
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
 
