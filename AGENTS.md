@@ -2,11 +2,11 @@
 
 ## Project Structure & Module Organization
 
-Start with `README.md`, then read `docs/research/CURRENT_STATE.md` before changing code or launching experiments. Python experiment, data-protocol, training, inference, and evaluation code lives in `server/`. Local preparation utilities live in `scripts/`; tests live in `tests/` and follow the corresponding server module. Frozen plans and specifications are under `docs/superpowers/`, while active hypotheses are under `docs/research/`. Compact scientific decisions belong in dated `关键记忆/` files. Raw datasets, model weights, PDFs, transfer staging, and generated results remain outside Git in ignored directories such as `本地数据集/` and `artifacts/`.
+Read `README.md`, then `docs/research/CURRENT_STATE.md` before changing code or launching experiments. Experiment, protocol, training, inference, and evaluation code lives in `server/`; local utilities live in `scripts/`; tests live in `tests/`. Frozen specifications are under `docs/superpowers/`, active hypotheses under `docs/research/`, and compact decisions in dated `关键记忆/` files. Datasets, weights, PDFs, staging files, and generated results stay outside Git in ignored directories such as `本地数据集/` and `artifacts/`.
 
 ## Build, Test, and Development Commands
 
-This repository has no packaging build step. Use the matching dependency profile when needed:
+There is no packaging build step. Use the matching dependency profile:
 
 ```powershell
 pip install -r server/requirements-evaluation.txt
@@ -16,20 +16,24 @@ python -m py_compile server/evaluate_task12a_complementarity.py
 git diff --check
 ```
 
-Run targeted tests while developing and the full suite before committing. `git diff --check` catches whitespace errors; `.gitattributes` enforces LF for Python, shell, Markdown, and JSON files.
+Run targeted tests during development and the full suite before committing. `git diff --check` catches whitespace errors; `.gitattributes` enforces line endings.
 
 ## Coding Style & Naming Conventions
 
-Use four-space Python indentation, type hints for public helpers, `pathlib.Path`, deterministic seeds, and explicit JSON contracts. Prefer small fail-closed functions over implicit fallback behavior. Python modules and tests use `snake_case`; test files are named `test_<module>.py`. Experiment paths use `task<id>_<name>/<date>/protocol_vN/attempt_NN`. Increment `protocol_vN` only for scientific changes; use a new `attempt_NN` for engineering retries. Shell entrypoints must begin with `set -euo pipefail` and be launched with `bash script.sh`.
+Use four-space Python indentation, type hints for public helpers, `pathlib.Path`, deterministic seeds, and explicit JSON contracts. Prefer fail-closed behavior. Modules use `snake_case`; tests use `test_<module>.py`. Experiment paths follow `task<id>_<name>/<date>/protocol_vN/attempt_NN`. Increment the protocol only for scientific changes and the attempt for engineering retries. Start shell entrypoints with `set -euo pipefail`; launch them using `bash script.sh`.
 
 ## Testing Guidelines
 
-Pytest is the primary framework. Every protocol, parser, gate, and failure path should have a focused regression test. No numeric coverage target is imposed, but new scientific decisions must be exercised by tests and verified with hashes, finite-value checks, and immutable output directories.
+Pytest is primary. Give every protocol, parser, gate, and failure path a focused regression test. Scientific decisions require hashes, finite-value checks, and immutable output directories; no numeric coverage target is imposed.
 
 ## Commit & Pull Request Guidelines
 
-Use concise imperative commits consistent with history: `Add Task12A complementarity hypothesis test` or `Record Task11C paired crop probe failure`. Keep code, protocol, and result-record commits logically scoped. Pull requests should state the hypothesis or engineering goal, changed protocol/attempt, tests run, output hashes or artifact pointers, scientific decision, and any limitations. Never describe an engineering launch failure as a model result.
+Use concise imperative commits such as `Add Task12A complementarity hypothesis test`. Keep changes logically scoped. Pull requests state the goal, protocol/attempt, tests, artifact pointers or hashes, decision, and limitations. Never describe a launch failure as a model result.
 
 ## Security & Agent Workflow
 
-Never commit credentials, SSH endpoints, local keys, model/data bodies, checkpoints, or logs. On each work session, verify Git state, read `CURRENT_STATE.md`, inspect the applicable frozen spec, and perform the complete remote preflight in `docs/remote-deployment-runbook.md`. Do not open locked confirmatory data or start larger training unless the recorded gate explicitly authorizes it.
+Never commit credentials, SSH endpoints, keys, datasets, checkpoints, or logs. At session start, verify Git state, read `CURRENT_STATE.md`, inspect the frozen spec, and use `docs/remote-deployment-runbook.md`. Do not open locked data or scale training without an explicit recorded gate.
+
+## End-of-Session Handoff
+
+Update `CURRENT_STATE.md` only when conclusions, next task, blockers, or authorization changed. Add a dated `关键记忆/` note only for consequential experiments or decisions; waiting without new evidence needs none. Record artifact paths, hashes, and remote run state, never credentials or endpoints. Before handoff, run relevant tests and `git diff --check`, commit and push tracked work, then report worktree cleanliness, remote jobs, and shutdown safety. `CURRENT_STATE.md` is the replaceable present snapshot; dated memories are the append-only history.
