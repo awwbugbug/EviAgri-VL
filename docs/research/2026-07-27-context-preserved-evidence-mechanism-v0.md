@@ -61,3 +61,12 @@ selection after a literature/red-team reset.
 The reset selected Task14A: an annotation-only, single-encoding oracle test of
 global plus in-frame region tokens against a same-width global control. No
 learned selector is implemented unless this upper bound is safe.
+
+## Task 14A outcome
+
+The oracle upper bound was not safe. `GR` did not improve Accuracy over `GG`;
+it increased true-class probability but also significantly increased PlantSeg
+pest confidence and lowered confidence AUROC. This rules out implementing the
+current mean-pooled learned-selector analogue. One disjoint unchanged
+replication is required before retiring this H2 subfamily; larger or learned
+variants remain blocked.

@@ -76,3 +76,11 @@ signal but insufficient safety evidence; it does not authorize learned gating.
 The required literature/red-team reset is complete. The next branch is Task14A,
 an annotation-only oracle test of region pooling within one full-frame Qwen
 encoding, with `GR-GG` as the primary same-width comparison.
+
+Task 14A outcome: `H2_ORACLE_NO_GAIN`. Oracle region fusion left Accuracy
+unchanged, modestly increased true-class probability, and significantly raised
+PlantSeg pest confidence while reducing confidence AUROC. This is the first
+falsifying H2 batch for simple mean region pooling. It blocks a learned selector
+but does not yet satisfy the two-batch retirement rule. The next admissible
+step is one unchanged, disjoint Task14B replication with exact quotas; no
+mechanism tuning is allowed between batches.

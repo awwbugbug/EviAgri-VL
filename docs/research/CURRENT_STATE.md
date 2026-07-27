@@ -16,11 +16,12 @@
 - Task12A and independent Task12B found directionally consistent conditional value from local features when global context was preserved (`GL` versus same-width `GG`). Task12B effects were smaller and several confidence intervals crossed zero.
 - Status: H1 has two-batch exploratory support and may enter mechanism design, but it is not confirmed. H2 token selection and H3 presence/taxonomy separation remain competing explanations.
 - Task13A tested H3 with a separate frozen-feature presence head. It preserved 100% positive coverage and reduced PlantDoc FPR from 90% to 0% and PlantSeg FPR from 81.25% to 18.75%, but failed the preregistered PlantSeg FPR <10% gate. Decision: `H3_BLOCK_H2_PRIORITY`; no learned gate is authorized.
+- Task14A tested H2 with one full-frame encoding and annotation-oracle region pooling. `GR-GG` changed Accuracy by 0 and increased true-class probability by 0.00657, but also significantly increased PlantSeg pest confidence by 0.00416 (95% CI 0.00242 to 0.00570) and reduced confidence AUROC by 0.01074. Decision: `H2_ORACLE_NO_GAIN`; no learned selector is authorized.
 - No QLoRA, large training, dynamic gating, or Task8 confirmatory access is currently authorized.
 
 ## Next Task
 
-Task14A should run the frozen H2 oracle discriminator described in `2026-07-27-h2-token-selection-literature-reset.md`: one full-frame Qwen encoding, spatial token pooling inside GT bbox/mask, and `GR-GG` as the primary same-width comparison. It must use a fresh family-safe exploratory batch. Success authorizes only a tiny learned-selector prototype; failure does not authorize another module or larger training.
+Before changing the mechanism, design Task14B as one unchanged independent H2 replication. The fresh positive pool cannot support another 4/1/2-per-class batch for class 17, so feasibility must be checked fail-closed for a 4-train/2-test-per-class design; Task14A validation was report-only and selected nothing. If exact fresh family-safe quotas are infeasible, block rather than approximate. A second no-gain/unsafe result retires simple oracle mean region pooling. No selector implementation or larger training is authorized before that decision.
 
 ## Storage Boundaries
 
