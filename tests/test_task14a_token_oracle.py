@@ -109,6 +109,43 @@ def test_protocol_blocks_instead_of_approximating_class_quota():
     assert result["report"]["reason"] == "insufficient_fresh_positive_components"
 
 
+def test_task14b_protocol_uses_six_new_components_per_class_without_validation():
+    positive, provenance, selected, prior, plantseg = _protocol_inputs(per_class=13)
+    task14a_prior = []
+    for class_id in FROZEN_SELECTED_CLASS_IDS:
+        for index in range(7):
+            task14a_prior.append(
+                {
+                    "source_image_id": f"fresh-{class_id}-{index}",
+                    "source_image_sha256": f"{class_id * 1000 + index + 1:064x}"[-64:],
+                    "near_duplicate_component_id": f"component-{class_id}-{index}",
+                }
+            )
+    result = select_protocol(
+        positive_rows=positive,
+        provenance_rows=provenance,
+        selected_classes=selected,
+        prior_positive_rows=[*prior, *task14a_prior],
+        plantseg_rows=plantseg,
+        prior_used_rows=[{"id": f"null-{index}"} for index in range(20)],
+        locked_ids=set(),
+        locked_sha256=set(),
+        positive_quotas={"probe_train": 4, "probe_val": 0, "probe_test": 2},
+        null_count=32,
+        protocol_label="task14b",
+    )
+    assert result["status"] == PASSED
+    rows = result["manifest"]
+    assert result["report"]["rows_by_split"] == {
+        "probe_train": 64,
+        "probe_val": 0,
+        "probe_test": 32,
+        "null_test": 32,
+    }
+    assert len(rows) == 128
+    assert not {row["source_image_id"] for row in task14a_prior} & {row["id"] for row in rows}
+
+
 def test_bbox_token_mapping_uses_centers_and_overlap_fallback():
     indices = bbox_region_indices([0, 0, 50, 50], 100, 100, 2, 2)
     assert indices.tolist() == [0]
@@ -139,6 +176,20 @@ def test_oracle_decision_requires_gain_and_null_safety():
     assert not no_gain["authorize_large_training"] and not no_gain["authorize_task8"]
 
 
+def test_replication_decision_never_authorizes_selector():
+    inconsistent = decide(
+        {"accuracy": 1 / 32, "true_probability": 0.01, "null_confidence": 0.0, "confidence_auroc": 0.01},
+        mode="replication",
+    )
+    assert inconsistent["decision"] == "H2_REPLICATION_INCONSISTENT"
+    assert not inconsistent["authorize_tiny_learned_selector"]
+    retired = decide(
+        {"accuracy": 0.0, "true_probability": 0.01, "null_confidence": 0.01, "confidence_auroc": -0.01},
+        mode="replication",
+    )
+    assert retired["decision"] == "H2_MEAN_REGION_RETIRED"
+
+
 def test_bootstrap_is_paired_at_fresh_image_level():
     result = paired_bootstrap(lambda p, n: float(p.mean() - n.mean()), 4, 4, 100, 7)
     assert result["unit"] == "fresh_image" and result["repetitions"] == 100
@@ -149,5 +200,15 @@ def test_task14a_shell_has_single_attempt_and_forbids_scope_expansion():
     assert "task14a_full_frame_token_oracle/2026-07-27/protocol_v1/attempt_01" in text
     assert "--repetitions 1000" in text
     assert "extract_task14a_oracle_tokens.py" in text
+    for forbidden in ("shutdown", "poweroff", "7B", "SAM2", "train_qlora", "Task8"):
+        assert forbidden not in text
+
+
+def test_task14b_shell_is_disjoint_replication_and_keeps_scope_frozen():
+    text = (ROOT / "server" / "run_task14b_independent_token_oracle.sh").read_text(encoding="utf-8")
+    assert "task14b_independent_token_oracle/2026-07-27/protocol_v1/attempt_01" in text
+    assert '--prior-positive "$TASK14A"' in text and '--prior-used "$TASK14A"' in text
+    assert "--train-per-class 4 --val-per-class 0" in text
+    assert "--decision-mode replication" in text and "--repetitions 1000" in text
     for forbidden in ("shutdown", "poweroff", "7B", "SAM2", "train_qlora", "Task8"):
         assert forbidden not in text

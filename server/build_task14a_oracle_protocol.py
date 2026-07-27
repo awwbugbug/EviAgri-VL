@@ -84,8 +84,18 @@ def select_protocol(
     prior_used_rows: Iterable[dict[str, Any]],
     locked_ids: set[str],
     locked_sha256: set[str],
+    positive_quotas: dict[str, int] | None = None,
+    null_count: int = NULL_COUNT,
+    protocol_label: str = "task14a",
 ) -> dict[str, Any]:
     """Select rows without opening an image or loading a model."""
+    quotas = dict(POSITIVE_QUOTAS if positive_quotas is None else positive_quotas)
+    if set(quotas) != {"probe_train", "probe_val", "probe_test"}:
+        raise ValueError("positive quotas must define train/val/test")
+    if quotas["probe_train"] <= 0 or quotas["probe_val"] < 0 or quotas["probe_test"] <= 0:
+        raise ValueError("invalid positive quotas")
+    if null_count <= 0 or not protocol_label:
+        raise ValueError("invalid null count or protocol label")
     class_bands = {
         int(row["class_id"]): str(row.get("class_band", row.get("band", "")))
         for row in selected_classes
@@ -136,7 +146,7 @@ def select_protocol(
             or digest in excluded_sha256
             or component in excluded_components
         ):
-            exclusions["prior_task10_family_boundary"] += 1
+            exclusions["prior_positive_family_boundary"] += 1
             continue
         image = str(row.get("image", ""))
         if not image:
@@ -180,7 +190,7 @@ def select_protocol(
         )
         representatives[int(representative["class_id"])].append(representative)
 
-    required_per_class = sum(POSITIVE_QUOTAS.values())
+    required_per_class = sum(quotas.values())
     availability = {
         str(class_id): len(representatives[class_id])
         for class_id in sorted(expected_classes)
@@ -217,7 +227,7 @@ def select_protocol(
         )[:required_per_class]
         offset = 0
         for split in ("probe_train", "probe_val", "probe_test"):
-            count = POSITIVE_QUOTAS[split]
+            count = quotas[split]
             manifest.extend({**row, "probe_split": split} for row in ranked[offset : offset + count])
             offset += count
 
@@ -252,7 +262,7 @@ def select_protocol(
             }
         )
     plantseg_candidates.sort(key=lambda row: (float(row["mask_ratio"]), str(row["id"])))
-    if len(plantseg_candidates) < NULL_COUNT:
+    if len(plantseg_candidates) < null_count:
         return {
             "status": BLOCKED,
             "manifest": [],
@@ -264,8 +274,15 @@ def select_protocol(
                 "model_loaded": False,
             },
         }
-    indices = [int(index * (len(plantseg_candidates) - 1) / (NULL_COUNT - 1)) for index in range(NULL_COUNT)]
-    if len(set(indices)) != NULL_COUNT:
+    indices = (
+        [len(plantseg_candidates) // 2]
+        if null_count == 1
+        else [
+            int(index * (len(plantseg_candidates) - 1) / (null_count - 1))
+            for index in range(null_count)
+        ]
+    )
+    if len(set(indices)) != null_count:
         raise ValueError("PlantSeg quantile selection is not unique")
     manifest.extend(plantseg_candidates[index] for index in indices)
     manifest.sort(
@@ -277,22 +294,29 @@ def select_protocol(
     )
 
     counts = Counter(str(row["probe_split"]) for row in manifest)
-    expected_counts = {"probe_train": 64, "probe_val": 16, "probe_test": 32, "null_test": 32}
+    class_count = len(expected_classes)
+    expected_counts = {
+        "probe_train": class_count * quotas["probe_train"],
+        "probe_val": class_count * quotas["probe_val"],
+        "probe_test": class_count * quotas["probe_test"],
+        "null_test": null_count,
+    }
     components_by_split = {
         split: {
             str(row["near_duplicate_component_id"])
             for row in manifest
             if row["target_type"] == "positive" and row["probe_split"] == split
         }
-        for split in POSITIVE_QUOTAS
+        for split in quotas
     }
     overlap = set()
-    split_names = list(POSITIVE_QUOTAS)
+    split_names = list(quotas)
     for index, left in enumerate(split_names):
         for right in split_names[index + 1 :]:
             overlap.update(components_by_split[left] & components_by_split[right])
     identifiers = [str(row["id"]) for row in manifest]
-    if dict(counts) != expected_counts or len(set(identifiers)) != len(identifiers) or overlap:
+    observed_counts = {key: int(counts[key]) for key in expected_counts}
+    if observed_counts != expected_counts or len(set(identifiers)) != len(identifiers) or overlap:
         raise ValueError("Task14A cardinality, ID, or family-isolation failure")
     if any(
         str(row.get("near_duplicate_component_id", "")) in excluded_components
@@ -302,7 +326,7 @@ def select_protocol(
         raise ValueError("Task14A reused a Task10B near-duplicate component")
 
     report = {
-        "version": "task14a-oracle-protocol-report-1",
+        "version": f"{protocol_label}-oracle-protocol-report-1",
         "status": PASSED,
         "row_count": len(manifest),
         "rows_by_split": expected_counts,
@@ -314,7 +338,7 @@ def select_protocol(
             "maximum": max(float(row["mask_ratio"]) for row in manifest if row["target_type"] == "real_null"),
         },
         "excluded": dict(sorted(exclusions.items())),
-        "excluded_task10_component_count": len(excluded_components),
+        "excluded_prior_positive_component_count": len(excluded_components),
         "excluded_multiclass_component_count": len(multiclass),
         "prior_used_id_count": len(used_ids),
         "cross_split_component_overlap": len(overlap),
@@ -335,24 +359,28 @@ def build_from_paths(
     positive_paths: Iterable[Path],
     provenance_path: Path,
     selected_classes_path: Path,
-    prior_positive_path: Path,
+    prior_positive_paths: Iterable[Path],
     plantseg_path: Path,
     prior_used_paths: Iterable[Path],
     locked_exclusion_path: Path,
     output_root: Path,
+    positive_quotas: dict[str, int] | None = None,
+    null_count: int = NULL_COUNT,
+    protocol_label: str = "task14a",
 ) -> dict[str, Any]:
     positive_files = [Path(path) for path in positive_paths]
+    prior_positive_files = [Path(path) for path in prior_positive_paths]
     used_files = [Path(path) for path in prior_used_paths]
     input_paths = [
         *positive_files,
         Path(provenance_path),
         Path(selected_classes_path),
-        Path(prior_positive_path),
+        *prior_positive_files,
         Path(plantseg_path),
         *used_files,
         Path(locked_exclusion_path),
     ]
-    if not positive_files or not used_files or any(not path.is_file() for path in input_paths):
+    if not positive_files or not prior_positive_files or not used_files or any(not path.is_file() for path in input_paths):
         raise ValueError("Task14A protocol input is missing")
     root = Path(output_root)
     ensure_new_directory(root)
@@ -363,19 +391,22 @@ def build_from_paths(
             positive_rows=[row for path in positive_files for row in read_jsonl(path)],
             provenance_rows=read_jsonl(Path(provenance_path)),
             selected_classes=json.loads(Path(selected_classes_path).read_text(encoding="utf-8")),
-            prior_positive_rows=read_jsonl(Path(prior_positive_path)),
+            prior_positive_rows=[row for path in prior_positive_files for row in read_jsonl(path)],
             plantseg_rows=read_jsonl(Path(plantseg_path)),
             prior_used_rows=[row for path in used_files for row in read_jsonl(path)],
             locked_ids={str(value) for value in locked.get("image_ids", [])},
             locked_sha256={str(value) for value in locked.get("image_sha256", [])},
+            positive_quotas=positive_quotas,
+            null_count=null_count,
+            protocol_label=protocol_label,
         )
         write_json_new(root / "input_sha256.json", {str(path): sha256_file(path) for path in input_paths})
         write_json_new(
             root / "config.snapshot.json",
             {
-                "version": "task14a-oracle-protocol-config-1",
-                "positive_quotas_per_class": POSITIVE_QUOTAS,
-                "plantseg_null_count": NULL_COUNT,
+                "version": f"{protocol_label}-oracle-protocol-config-1",
+                "positive_quotas_per_class": dict(POSITIVE_QUOTAS if positive_quotas is None else positive_quotas),
+                "plantseg_null_count": null_count,
                 "seeds": list(SEEDS),
                 "selection": "fresh_component_rank_and_mask_ratio_quantiles",
             },
@@ -403,21 +434,33 @@ def main() -> None:
     parser.add_argument("--positive-path", action="append", type=Path, required=True)
     parser.add_argument("--provenance", type=Path, required=True)
     parser.add_argument("--selected-classes", type=Path, required=True)
-    parser.add_argument("--prior-positive", type=Path, required=True)
+    parser.add_argument("--prior-positive", action="append", type=Path, required=True)
     parser.add_argument("--plantseg", type=Path, required=True)
     parser.add_argument("--prior-used", action="append", type=Path, required=True)
     parser.add_argument("--locked-exclusion", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument("--train-per-class", type=int, default=4)
+    parser.add_argument("--val-per-class", type=int, default=1)
+    parser.add_argument("--test-per-class", type=int, default=2)
+    parser.add_argument("--null-count", type=int, default=NULL_COUNT)
+    parser.add_argument("--protocol-label", default="task14a")
     args = parser.parse_args()
     report = build_from_paths(
         positive_paths=args.positive_path,
         provenance_path=args.provenance,
         selected_classes_path=args.selected_classes,
-        prior_positive_path=args.prior_positive,
+        prior_positive_paths=args.prior_positive,
         plantseg_path=args.plantseg,
         prior_used_paths=args.prior_used,
         locked_exclusion_path=args.locked_exclusion,
         output_root=args.output_root,
+        positive_quotas={
+            "probe_train": args.train_per_class,
+            "probe_val": args.val_per_class,
+            "probe_test": args.test_per_class,
+        },
+        null_count=args.null_count,
+        protocol_label=args.protocol_label,
     )
     print(json.dumps(report, indent=2, sort_keys=True))
 

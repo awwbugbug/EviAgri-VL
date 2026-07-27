@@ -98,7 +98,15 @@ def _write_status(path: Path, value: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
-def extract(*, manifest_path: Path, model_path: Path, output_root: Path) -> dict[str, Any]:
+def extract(
+    *,
+    manifest_path: Path,
+    model_path: Path,
+    output_root: Path,
+    expected_count: int = 144,
+    config_version: str = "task14a-oracle-feature-config-1",
+    summary_version: str = "task14a-oracle-feature-summary-1",
+) -> dict[str, Any]:
     from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
     root = Path(output_root)
@@ -107,8 +115,8 @@ def extract(*, manifest_path: Path, model_path: Path, output_root: Path) -> dict
     started = time.monotonic()
     try:
         rows = read_jsonl(Path(manifest_path))
-        if len(rows) != 144:
-            raise ValueError("Task14A manifest must contain 144 rows")
+        if expected_count <= 0 or len(rows) != expected_count:
+            raise ValueError("oracle manifest has unexpected row count")
         processor = AutoProcessor.from_pretrained(
             model_path,
             min_pixels=MIN_PIXELS,
@@ -187,7 +195,7 @@ def extract(*, manifest_path: Path, model_path: Path, output_root: Path) -> dict
         global_matrix = np.stack(globals_).astype(np.float32, copy=False)
         region_matrix = np.stack(regions).astype(np.float32, copy=False)
         for name, matrix in (("global", global_matrix), ("region", region_matrix)):
-            if matrix.shape != (144, 2048) or not np.isfinite(matrix).all():
+            if matrix.shape != (expected_count, 2048) or not np.isfinite(matrix).all():
                 raise ValueError(f"invalid {name} feature matrix")
             if not np.allclose(np.linalg.norm(matrix, axis=1), 1.0, atol=1e-5, rtol=1e-5):
                 raise ValueError(f"{name} features are not unit-normalized")
@@ -199,7 +207,7 @@ def extract(*, manifest_path: Path, model_path: Path, output_root: Path) -> dict
         write_json_new(
             root / "config.snapshot.json",
             {
-                "version": "task14a-oracle-feature-config-1",
+                "version": config_version,
                 "model_path": str(Path(model_path)),
                 "model_identity": _model_identity(Path(model_path)),
                 "manifest_sha256": sha256_file(Path(manifest_path)),
@@ -212,9 +220,9 @@ def extract(*, manifest_path: Path, model_path: Path, output_root: Path) -> dict
             },
         )
         summary = {
-            "version": "task14a-oracle-feature-summary-1",
+            "version": summary_version,
             "state": "completed",
-            "feature_count": 144,
+            "feature_count": expected_count,
             "feature_dimension": 2048,
             "all_parameters_frozen": True,
             "full_frame_encodings_per_image": 1,
@@ -243,8 +251,24 @@ def main() -> None:
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument("--expected-count", type=int, default=144)
+    parser.add_argument("--config-version", default="task14a-oracle-feature-config-1")
+    parser.add_argument("--summary-version", default="task14a-oracle-feature-summary-1")
     args = parser.parse_args()
-    print(json.dumps(extract(manifest_path=args.manifest, model_path=args.model_path, output_root=args.output_root), indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            extract(
+                manifest_path=args.manifest,
+                model_path=args.model_path,
+                output_root=args.output_root,
+                expected_count=args.expected_count,
+                config_version=args.config_version,
+                summary_version=args.summary_version,
+            ),
+            indent=2,
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":

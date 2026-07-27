@@ -62,20 +62,28 @@ def paired_bootstrap(
     }
 
 
-def decide(primary_delta: dict[str, float]) -> dict[str, Any]:
+def decide(primary_delta: dict[str, float], mode: str = "oracle") -> dict[str, Any]:
     gain = primary_delta["accuracy"] >= 1 / 32 and primary_delta["true_probability"] > 0
     safe = primary_delta["null_confidence"] <= 0 and primary_delta["confidence_auroc"] >= 0
-    if gain and safe:
+    if mode == "replication":
+        decision = "H2_REPLICATION_INCONSISTENT" if gain and safe else "H2_MEAN_REGION_RETIRED"
+        authorize_tiny = False
+    elif mode != "oracle":
+        raise ValueError("unknown Task14 decision mode")
+    elif gain and safe:
         decision = "H2_ORACLE_SUPPORTED"
+        authorize_tiny = True
     elif gain:
         decision = "H2_ORACLE_UNSAFE"
+        authorize_tiny = False
     else:
         decision = "H2_ORACLE_NO_GAIN"
+        authorize_tiny = False
     return {
         "decision": decision,
         "positive_gain": gain,
         "reliability_safe": safe,
-        "authorize_tiny_learned_selector": gain and safe,
+        "authorize_tiny_learned_selector": authorize_tiny,
         "authorize_large_training": False,
         "authorize_task8": False,
     }
@@ -87,13 +95,28 @@ def _write_jsonl_new(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
 
 
-def run(*, protocol_root: Path, feature_root: Path, output_root: Path, repetitions: int = 1000) -> dict[str, Any]:
+def run(
+    *,
+    protocol_root: Path,
+    feature_root: Path,
+    output_root: Path,
+    repetitions: int = 1000,
+    train_per_class: int = 4,
+    val_per_class: int = 1,
+    test_per_class: int = 2,
+    null_count: int = 32,
+    decision_mode: str = "oracle",
+    report_version: str = "task14a-token-oracle-evaluation-1",
+) -> dict[str, Any]:
     protocol = Path(protocol_root)
     features = Path(feature_root)
     output = Path(output_root)
     ensure_new_directory(output)
     (output / "status.json").write_text('{"state":"running"}\n', encoding="utf-8")
     try:
+        class_count = 16
+        if test_per_class * class_count != 32 or null_count != 32:
+            raise ValueError("frozen Task14 decision gates require 32 positive and 32 null test images")
         verify_completion(protocol)
         verify_completion(features)
         manifest_sha = sha256_file(protocol / "manifest.jsonl")
@@ -106,7 +129,8 @@ def run(*, protocol_root: Path, feature_root: Path, output_root: Path, repetitio
         global_values = np.load(features / "global_features.npy", allow_pickle=False)
         region_values = np.load(features / "region_features.npy", allow_pickle=False)
         rows = read_jsonl(features / "feature_rows.jsonl")
-        if global_values.shape != (144, 2048) or region_values.shape != (144, 2048) or len(rows) != 144:
+        expected_total = class_count * (train_per_class + val_per_class + test_per_class) + null_count
+        if global_values.shape != (expected_total, 2048) or region_values.shape != (expected_total, 2048) or len(rows) != expected_total:
             raise ValueError("unexpected Task14A feature contract")
         if not np.isfinite(global_values).all() or not np.isfinite(region_values).all():
             raise ValueError("non-finite Task14A features")
@@ -115,7 +139,12 @@ def run(*, protocol_root: Path, feature_root: Path, output_root: Path, repetitio
 
         split_names = ("probe_train", "probe_val", "probe_test", "null_test")
         masks = {split: np.asarray([str(row["probe_split"]) == split for row in rows]) for split in split_names}
-        expected_counts = {"probe_train": 64, "probe_val": 16, "probe_test": 32, "null_test": 32}
+        expected_counts = {
+            "probe_train": class_count * train_per_class,
+            "probe_val": class_count * val_per_class,
+            "probe_test": class_count * test_per_class,
+            "null_test": null_count,
+        }
         if {split: int(mask.sum()) for split, mask in masks.items()} != expected_counts:
             raise ValueError("Task14A split cardinality mismatch")
         labels = np.asarray([int(row["class_id"]) if row["class_id"] is not None else -1 for row in rows])
@@ -124,7 +153,7 @@ def run(*, protocol_root: Path, feature_root: Path, output_root: Path, repetitio
             raise ValueError("Task14A training class count mismatch")
         for class_id in classes:
             counts = [int(((labels == class_id) & masks[split]).sum()) for split in ("probe_train", "probe_val", "probe_test")]
-            if counts != [4, 1, 2]:
+            if counts != [train_per_class, val_per_class, test_per_class]:
                 raise ValueError(f"Task14A per-class quota mismatch: {class_id}")
 
         representations = {
@@ -164,7 +193,11 @@ def run(*, protocol_root: Path, feature_root: Path, output_root: Path, repetitio
                     "mean_true_probability": float(true_probability.mean()),
                     "mean_null_confidence": float(confidence[null].mean()),
                     "confidence_auroc": float(roc_auc_score(np.r_[np.ones(test.sum()), np.zeros(null.sum())], np.r_[confidence[test], confidence[null]])),
-                    "validation_accuracy": float(accuracy_score(labels[masks["probe_val"]], forced[masks["probe_val"]])),
+                    "validation_accuracy": (
+                        None
+                        if not masks["probe_val"].any()
+                        else float(accuracy_score(labels[masks["probe_val"]], forced[masks["probe_val"]]))
+                    ),
                 }
                 raw[condition] = {"forced": forced, "confidence": confidence, "true_probability": true_probability}
                 for index, row in enumerate(rows):
@@ -210,9 +243,9 @@ def run(*, protocol_root: Path, feature_root: Path, output_root: Path, repetitio
             "confidence_auroc": mean(per_seed[str(seed)]["GR"]["confidence_auroc"] - per_seed[str(seed)]["GG"]["confidence_auroc"] for seed in SEEDS),
         }
         bootstrap = {
-            "accuracy_delta": paired_bootstrap(lambda p, n: float(arrays["correct"][p].mean()), 32, 32, repetitions, 20260727),
-            "true_probability_delta": paired_bootstrap(lambda p, n: float(arrays["true_probability"][p].mean()), 32, 32, repetitions, 20260728),
-            "null_confidence_delta": paired_bootstrap(lambda p, n: float(arrays["null_confidence"][n].mean()), 32, 32, repetitions, 20260729),
+            "accuracy_delta": paired_bootstrap(lambda p, n: float(arrays["correct"][p].mean()), expected_counts["probe_test"], null_count, repetitions, 20260727),
+            "true_probability_delta": paired_bootstrap(lambda p, n: float(arrays["true_probability"][p].mean()), expected_counts["probe_test"], null_count, repetitions, 20260728),
+            "null_confidence_delta": paired_bootstrap(lambda p, n: float(arrays["null_confidence"][n].mean()), expected_counts["probe_test"], null_count, repetitions, 20260729),
             "confidence_auroc_delta": paired_bootstrap(
                 lambda p, n: float(
                     roc_auc_score(
@@ -224,13 +257,13 @@ def run(*, protocol_root: Path, feature_root: Path, output_root: Path, repetitio
                         np.r_[arrays["gg_positive_confidence"][p].ravel(), arrays["gg_null_confidence"][n].ravel()],
                     )
                 ),
-                32,
-                32,
+                expected_counts["probe_test"],
+                null_count,
                 repetitions,
                 20260730,
             ),
         }
-        decision = decide(primary_delta)
+        decision = decide(primary_delta, mode=decision_mode)
         fractions = {
             target: {
                 "minimum": float(min(float(row["region_token_fraction"]) for row in rows if row["target_type"] == target)),
@@ -240,7 +273,7 @@ def run(*, protocol_root: Path, feature_root: Path, output_root: Path, repetitio
             for target in ("positive", "real_null")
         }
         report = {
-            "version": "task14a-token-oracle-evaluation-1",
+            "version": report_version,
             "sample_counts": expected_counts,
             "representations": {"G": 2048, "R": 2048, "GG": 4096, "GR": 4096},
             "per_seed": per_seed,
@@ -281,8 +314,25 @@ def main() -> None:
     parser.add_argument("--feature-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--repetitions", type=int, default=1000)
+    parser.add_argument("--train-per-class", type=int, default=4)
+    parser.add_argument("--val-per-class", type=int, default=1)
+    parser.add_argument("--test-per-class", type=int, default=2)
+    parser.add_argument("--null-count", type=int, default=32)
+    parser.add_argument("--decision-mode", choices=("oracle", "replication"), default="oracle")
+    parser.add_argument("--report-version", default="task14a-token-oracle-evaluation-1")
     args = parser.parse_args()
-    report = run(protocol_root=args.protocol_root, feature_root=args.feature_root, output_root=args.output_root, repetitions=args.repetitions)
+    report = run(
+        protocol_root=args.protocol_root,
+        feature_root=args.feature_root,
+        output_root=args.output_root,
+        repetitions=args.repetitions,
+        train_per_class=args.train_per_class,
+        val_per_class=args.val_per_class,
+        test_per_class=args.test_per_class,
+        null_count=args.null_count,
+        decision_mode=args.decision_mode,
+        report_version=args.report_version,
+    )
     print(json.dumps(report["decision"], indent=2, sort_keys=True))
 
 
