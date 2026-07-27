@@ -1,0 +1,53 @@
+# EviAgri-VL research question and rolling hypothesis tree v1
+
+## Locked research question
+
+How can an agricultural vision-language system improve fine-grained pest
+diagnosis while avoiding concrete pest predictions on disease, damage, empty,
+or otherwise unsupported images?
+
+The answer is not locked. Evidence-First ordering, family-safe splits, separate
+positive/real-null/synthetic-null metrics, fresh exploratory batches, and a
+single-use confirmatory set are locked.
+
+## Competing mechanisms
+
+- **H1 — complementary local evidence:** local evidence contains class
+  information not recoverable from the global pooled representation, but must
+  be combined without removing context.
+- **H2 — within-frame token selection:** cropping is the wrong intervention;
+  evidence should be selected or weighted inside the complete image token set.
+- **H3 — presence/taxonomy separation:** the main failure comes from asking one
+  positive-only taxonomy head to perform both evidence-presence rejection and
+  pest classification.
+
+Task 11C.1 rejected crop replacement. It did not establish H1, H2, or H3.
+
+## Exploration and confirmation boundary
+
+- Exploratory mechanisms may be changed only between versioned micro studies.
+- A batch that informed a mechanism becomes locked diagnostic evidence and
+  cannot tune the next study.
+- A mechanism needs directionally consistent evidence on two independent
+  exploratory batches before any scale-up.
+- Only after architecture, losses, and decision rules are frozen may the Task8
+  confirmatory families be opened once.
+
+## Exit rules
+
+- Retire a mechanism family after two independent falsifying micro studies.
+- After three mechanism studies, perform a literature/red-team reset before
+  adding another module.
+- Never rescue a failed mechanism by simultaneously changing data, head,
+  threshold, and loss.
+- `STRUCTURAL_FAILURE` blocks larger training; negative evidence updates this
+  tree instead of being relabeled as engineering success.
+
+## Current discriminator
+
+Task 12A asks whether local features add class information conditional on the
+global representation. It compares `G`, `L`, dimension-control `G+G`, and
+`G+L` using fresh exploration samples and fixed linear probes. A positive gain
+with null harm prioritizes H3; a safe gain prioritizes H1; no conditional gain
+prioritizes H2. No branch authorizes QLoRA or full training.
+
