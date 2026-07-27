@@ -9,7 +9,7 @@ ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT / "server"))
 
 from build_task14a_oracle_protocol import BLOCKED, PASSED, select_protocol
-from evaluate_task14a_token_oracle import decide, paired_bootstrap
+from evaluate_task14a_token_oracle import decide, paired_bootstrap, validate_feature_row_order
 from extract_task14a_oracle_tokens import (
     bbox_region_indices,
     mask_region_indices,
@@ -195,6 +195,11 @@ def test_bootstrap_is_paired_at_fresh_image_level():
     assert result["unit"] == "fresh_image" and result["repetitions"] == 100
 
 
+def test_feature_order_validation_supports_128_row_replication():
+    rows = [{"feature_index": index} for index in range(128)]
+    validate_feature_row_order(rows, 128)
+
+
 def test_task14a_shell_has_single_attempt_and_forbids_scope_expansion():
     text = (ROOT / "server" / "run_task14a_full_frame_token_oracle.sh").read_text(encoding="utf-8")
     assert "task14a_full_frame_token_oracle/2026-07-27/protocol_v1/attempt_01" in text
@@ -212,3 +217,11 @@ def test_task14b_shell_is_disjoint_replication_and_keeps_scope_frozen():
     assert "--decision-mode replication" in text and "--repetitions 1000" in text
     for forbidden in ("shutdown", "poweroff", "7B", "SAM2", "train_qlora", "Task8"):
         assert forbidden not in text
+
+
+def test_task14b_retry_reuses_verified_features_without_scientific_change():
+    text = (ROOT / "server" / "run_task14b_evaluation_retry.sh").read_text(encoding="utf-8")
+    assert "protocol_v1/attempt_01" in text and "protocol_v1/attempt_02" in text
+    assert '"scientific_protocol_changed":False' in text
+    assert "extract_task14a_oracle_tokens.py" not in text
+    assert "--decision-mode replication" in text and "--repetitions 1000" in text

@@ -95,6 +95,13 @@ def _write_jsonl_new(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
 
 
+def validate_feature_row_order(rows: list[dict[str, Any]], expected_total: int) -> None:
+    if expected_total <= 0 or len(rows) != expected_total:
+        raise ValueError("feature row cardinality mismatch")
+    if [int(row["feature_index"]) for row in rows] != list(range(expected_total)):
+        raise ValueError("feature row order mismatch")
+
+
 def run(
     *,
     protocol_root: Path,
@@ -134,8 +141,7 @@ def run(
             raise ValueError("unexpected Task14A feature contract")
         if not np.isfinite(global_values).all() or not np.isfinite(region_values).all():
             raise ValueError("non-finite Task14A features")
-        if [int(row["feature_index"]) for row in rows] != list(range(144)):
-            raise ValueError("feature row order mismatch")
+        validate_feature_row_order(rows, expected_total)
 
         split_names = ("probe_train", "probe_val", "probe_test", "null_test")
         masks = {split: np.asarray([str(row["probe_split"]) == split for row in rows]) for split in split_names}
