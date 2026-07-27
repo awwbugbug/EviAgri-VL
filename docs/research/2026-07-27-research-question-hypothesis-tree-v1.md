@@ -84,3 +84,16 @@ falsifying H2 batch for simple mean region pooling. It blocks a learned selector
 but does not yet satisfy the two-batch retirement rule. The next admissible
 step is one unchanged, disjoint Task14B replication with exact quotas; no
 mechanism tuning is allowed between batches.
+
+Task 14B outcome: the independent batch again failed. `GR-GG` reduced Accuracy
+by 3.125 pp and Macro-F1 by 2.083 pp. True-class probability increased, but so
+did PlantSeg pest confidence, with its 95% interval entirely above zero. The
+preregistered decision is `H2_MEAN_REGION_RETIRED`. This retires simple
+annotation-oracle mean region pooling and blocks a learned analogue. It does
+not claim that every possible token selector is false.
+
+The next smallest discriminator is a paired, post-hoc Task15A resolution
+forensic on the fixed Task14 batches: compare separately re-encoded crop detail
+against within-frame region tokens under the same global anchor. This can
+identify whether Task12's signal was magnification/re-encoding rather than
+selection, but cannot serve as independent confirmation or authorize scale-up.

@@ -70,3 +70,13 @@ pest confidence and lowered confidence AUROC. This rules out implementing the
 current mean-pooled learned-selector analogue. One disjoint unchanged
 replication is required before retiring this H2 subfamily; larger or learned
 variants remain blocked.
+
+## Task 14B outcome
+
+The disjoint replication again found no safe region-pooling gain: Accuracy and
+Macro-F1 decreased while PlantSeg confidence significantly increased. Simple
+mean region pooling is therefore retired after two independent falsifying
+batches. The remaining mechanistic ambiguity is whether Task12's `G+L` signal
+came from crop magnification and a second frozen encoding rather than spatial
+selection itself. A paired Task15A forensic may isolate that factor without
+training a module; it is diagnostic only.
