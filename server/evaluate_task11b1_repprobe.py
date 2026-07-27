@@ -154,7 +154,14 @@ def run(*, roots: dict[str, dict[str, Path]], config_path: Path, output_root: Pa
         paired={"positive":paired_positive(results["vision"],results["query"],reps),
                 **{key:paired_fpr(results["vision"],results["query"],key,reps) for key in (*CONDITIONS,"plantdoc","plantseg")}}
         compact={rep:results[rep]["aggregate"] for rep in results}; decision=decide(compact,paired,config["gates"])
-        report={"version":"task11b1-repprobe-result-v1","summary":compact,"paired_bootstrap":paired,"decision":decision,
+        seed_metrics={rep:{str(seed):{
+            "router_metrics":results[rep]["seeds"][seed]["router"]["metrics"],
+            "router_decision":results[rep]["seeds"][seed]["router"]["decision"],
+            "plantdoc_fpr":mean(float(r["accepted"]) for r in results[rep]["seeds"][seed]["plantdoc"]),
+            "plantseg_fpr":mean(float(r["accepted"]) for r in results[rep]["seeds"][seed]["plantseg"]),
+        } for seed in SEEDS} for rep in ("vision","query")}
+        report={"version":"task11b1-repprobe-result-v1","summary":compact,"seed_metrics":seed_metrics,
+                "paired_bootstrap":paired,"decision":decision,
                 "task8_locked_set_read":False,"training_performed":False}
         signed=[]
         for rep in ("vision","query"):
