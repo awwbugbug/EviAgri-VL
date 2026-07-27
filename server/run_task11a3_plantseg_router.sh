@@ -10,7 +10,7 @@ HUMAN=/root/autodl-tmp/EviAgriDiag/datasets/derived/plantseg_final_human_audit/2
 TASK10B=/root/autodl-tmp/EviAgriDiag/experiments/task10_micro_first/2026-07-17/task10b_v2/formal_features
 TASK11A2=/root/autodl-tmp/EviAgriDiag/experiments/task11a2_plantdoc_real_null/2026-07-23/features
 MODEL=/root/autodl-tmp/EviAgriDiag/models/Qwen/Qwen2___5-VL-3B-Instruct
-ROOT=/root/autodl-tmp/EviAgriDiag/experiments/task11a3_plantseg_real_null/2026-07-27/formal_v1
+ROOT=/root/autodl-tmp/EviAgriDiag/experiments/task11a3_plantseg_real_null/2026-07-27/formal_v2
 DATASET="$ROOT/dataset"
 FEATURES="$ROOT/features"
 EVALUATION="$ROOT/evaluation"
@@ -46,7 +46,7 @@ test "$(sha256sum "$HUMAN/final_audit_report.json" | cut -d' ' -f1)" = "$EXPECTE
 (cd "$TASK11A2" && sha256sum -c completion.sha256)
 
 declare -A CODE_SHA=(
-  [build_task11a3_router_dataset.py]=fbcbd3a1b406d091561060a10efe60e3dc7cd1a3ce3afe5ecf3663b72bc554db
+  [build_task11a3_router_dataset.py]=b7b914c65f89adcda7b307ec4b0ff7f2a520aef647de100a79bd2bb63ebffe8f
   [extract_task10b_features.py]=0c012f2fbfac21d95f03bcf8c9725dc7920cf1b4768e78b751b739b54d5db3f7
   [evaluate_task11a3_plantseg_null.py]=bad8a0871e170b184a6be826906ca4b251e845bfac7347ede7635e7749a06875
   [task10_audit_common.py]=6d5ca689de59290ed8bda4ea6137075135c11c1e95830f07dd41b1b6a0ba60c3

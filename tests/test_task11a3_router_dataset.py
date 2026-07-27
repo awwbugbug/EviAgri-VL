@@ -10,8 +10,20 @@ from PIL import Image
 ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT / "server"))
 
-from build_task11a3_router_dataset import build_router_dataset
+from build_task11a3_router_dataset import (
+    AUDIT_MANIFEST_SHA256,
+    FINAL_AUDIT_SHA256,
+    PRIVATE_INDEX_SHA256,
+    build_router_dataset,
+)
 from task10_audit_common import sha256_file
+
+
+def test_frozen_source_hashes_are_complete_sha256_values():
+    assert AUDIT_MANIFEST_SHA256 == "55e9f80146dc1f20c306f9e3bbee790189bc83636bdf80a4fd7463e4e0ee8bb9"
+    assert all(len(value) == 64 for value in (
+        AUDIT_MANIFEST_SHA256, FINAL_AUDIT_SHA256, PRIVATE_INDEX_SHA256,
+    ))
 
 
 def _image_bytes(mode: str, fmt: str) -> bytes:
