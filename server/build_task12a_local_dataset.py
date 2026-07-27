@@ -37,11 +37,12 @@ def select_rows(base: list[dict[str,Any]], plantseg: list[dict[str,Any]], used_i
     return selected
 
 
-def build(*, base_manifest: Path, plantseg_manifest: Path, prior_crop_manifest: Path, output_root: Path) -> dict[str,Any]:
+def build(*, base_manifest: Path, plantseg_manifest: Path, prior_crop_manifest: Path, output_root: Path, additional_used_manifest: Path | None = None) -> dict[str,Any]:
     root=Path(output_root); ensure_new_directory(root); (root/"status.json").write_text('{"state":"running"}\n',encoding="utf-8")
     try:
         crops=root/"crops"; crops.mkdir()
         used={str(r["id"]) for r in read_jsonl(prior_crop_manifest)}
+        if additional_used_manifest is not None: used.update(str(r["id"]) for r in read_jsonl(additional_used_manifest))
         selected=select_rows(read_jsonl(base_manifest),read_jsonl(plantseg_manifest),used); records=[]
         for row in selected:
             source=Path(str(row["image"])); image_sha=sha256_file(source)
@@ -66,7 +67,7 @@ def build(*, base_manifest: Path, plantseg_manifest: Path, prior_crop_manifest: 
         report={"version":"task12a-local-dataset-1","count":len(records),"split_counts":counts,
             "effective_crop_count":sum(r["crop_mode"]=="effective_crop" for r in records),"identity_fallback_count":sum(r["crop_mode"]=="identity_full_frame" for r in records),
             "prior_used_count":len(used),"base_manifest_sha256":sha256_file(base_manifest),"plantseg_manifest_sha256":sha256_file(plantseg_manifest),
-            "prior_crop_manifest_sha256":sha256_file(prior_crop_manifest),"task8_locked_set_read":False}
+            "prior_crop_manifest_sha256":sha256_file(prior_crop_manifest),"additional_used_manifest_sha256":None if additional_used_manifest is None else sha256_file(additional_used_manifest),"task8_locked_set_read":False}
         write_json_new(root/"dataset_report.json",report)
         signed=["manifest.jsonl","dataset_report.json"]+[str(p.relative_to(root)) for p in sorted(crops.iterdir())]
         with (root/"completion.sha256").open("x",encoding="utf-8",newline="\n") as handle:
@@ -77,8 +78,8 @@ def build(*, base_manifest: Path, plantseg_manifest: Path, prior_crop_manifest: 
 
 
 def main() -> None:
-    p=argparse.ArgumentParser(description=__doc__); p.add_argument("--base-manifest",type=Path,required=True); p.add_argument("--plantseg-manifest",type=Path,required=True); p.add_argument("--prior-crop-manifest",type=Path,required=True); p.add_argument("--output-root",type=Path,required=True); a=p.parse_args()
-    print(json.dumps(build(base_manifest=a.base_manifest,plantseg_manifest=a.plantseg_manifest,prior_crop_manifest=a.prior_crop_manifest,output_root=a.output_root),indent=2,sort_keys=True))
+    p=argparse.ArgumentParser(description=__doc__); p.add_argument("--base-manifest",type=Path,required=True); p.add_argument("--plantseg-manifest",type=Path,required=True); p.add_argument("--prior-crop-manifest",type=Path,required=True); p.add_argument("--additional-used-manifest",type=Path); p.add_argument("--output-root",type=Path,required=True); a=p.parse_args()
+    print(json.dumps(build(base_manifest=a.base_manifest,plantseg_manifest=a.plantseg_manifest,prior_crop_manifest=a.prior_crop_manifest,additional_used_manifest=a.additional_used_manifest,output_root=a.output_root),indent=2,sort_keys=True))
 
 
 if __name__=="__main__": main()

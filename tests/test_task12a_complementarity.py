@@ -39,3 +39,12 @@ def test_shell_uses_one_protocol_attempt_and_no_large_training():
     assert "--repetitions 1000" in text and "local_features" in text
     for forbidden in ("shutdown","poweroff","Task8","7B","SAM2","qlora"):
         assert forbidden not in text
+
+
+def test_replication_shell_excludes_first_batch_and_preserves_protocol():
+    text=(ROOT/"server"/"run_task12b_independent_replication.sh").read_text(encoding="utf-8")
+    assert "task12b_independent_replication/2026-07-27/protocol_v1/attempt_01" in text
+    assert "--additional-used-manifest" in text and "task12a_conditional_complementarity" in text
+    assert "evaluate_task12a_complementarity.py" in text and "--repetitions 1000" in text
+    for forbidden in ("shutdown","poweroff","Task8","7B","SAM2","qlora"):
+        assert forbidden not in text
