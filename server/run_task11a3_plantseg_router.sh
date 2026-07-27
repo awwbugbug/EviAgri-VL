@@ -3,7 +3,7 @@ set -euo pipefail
 
 PY_BASE=/root/miniconda3/bin/python
 PY_VISION=/root/miniconda3/envs/eviagri/bin/python
-PROJECT=/root/EviAgri-VL/task11a3_router_code_20260727_v1
+PROJECT=/root/EviAgri-VL/task11a3_router_code_20260727_v3
 RAW=/root/autodl-tmp/EviAgriDiag/datasets/raw/plantseg_official_2026-07-23/plantseg.zip
 BLIND=/root/autodl-tmp/EviAgriDiag/datasets/derived/plantseg_blind_source_audit/2026-07-27
 HUMAN=/root/autodl-tmp/EviAgriDiag/datasets/derived/plantseg_final_human_audit/2026-07-27
