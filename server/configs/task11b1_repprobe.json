@@ -1,0 +1,24 @@
+{
+  "version": "task11b1-repprobe-protocol-v1",
+  "query": "Determine whether the image contains a visible agricultural pest. Base the decision only on image pixels.",
+  "layer_output_index": 27,
+  "query_tokens": 19,
+  "seeds": [17, 29, 43],
+  "bootstrap_repetitions": 1000,
+  "gates": {
+    "accuracy_delta_ge": -0.03,
+    "forced_macro_f1_delta_ge": -0.03,
+    "forced_macro_f1_bootstrap_low_ge": -0.05,
+    "query_coverage_ge": 0.70,
+    "coverage_delta_ge": -0.05,
+    "blank_fpr_lt": 0.10,
+    "blur_fpr_lt": 0.10,
+    "shuffle_fpr_lt": 0.25,
+    "synthetic_overall_fpr_delta_le": 0.0,
+    "plantdoc_fpr_lt": 0.10,
+    "plantdoc_fpr_delta_le": 0.025,
+    "plantseg_fpr_lt": 0.10,
+    "plantseg_fpr_delta_le": -0.02,
+    "plantseg_fpr_bootstrap_high_lt": 0.0
+  }
+}
