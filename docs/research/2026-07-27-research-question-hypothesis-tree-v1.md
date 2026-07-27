@@ -23,6 +23,12 @@ single-use confirmatory set are locked.
 
 Task 11C.1 rejected crop replacement. It did not establish H1, H2, or H3.
 
+Task 12A supplied the first independent support for H1: against the same-width
+`GG` control, `GL` improved fresh positive accuracy and Macro-F1 while reducing
+fresh PlantSeg confidence and improving confidence AUROC. This is one
+exploratory batch only. H1 is prioritized, not accepted; H2 and H3 remain live
+until an unchanged second-batch replication succeeds or fails.
+
 ## Exploration and confirmation boundary
 
 - Exploratory mechanisms may be changed only between versioned micro studies.
@@ -51,3 +57,6 @@ global representation. It compares `G`, `L`, dimension-control `G+G`, and
 with null harm prioritizes H3; a safe gain prioritizes H1; no conditional gain
 prioritizes H2. No branch authorizes QLoRA or full training.
 
+Task 12A outcome: `H1_PRIORITY`, `reliability_safe=true`. Required next action:
+repeat the identical tournament on a disjoint second exploration batch before
+designing any learned fusion module.
