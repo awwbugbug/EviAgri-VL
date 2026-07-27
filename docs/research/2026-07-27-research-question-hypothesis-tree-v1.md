@@ -67,3 +67,11 @@ true-class probability, null confidence, and confidence AUROC remained safe,
 but their individual 95% intervals crossed zero. H1 therefore has two-batch
 directional exploratory support and may enter mechanism design; it is not a
 confirmed effect. H2 and H3 remain active controls.
+
+Task 13A outcome: a separate frozen-feature presence head preserved positive
+coverage and supported diagnosis while reducing PlantDoc FPR from 90% to 0%
+and PlantSeg FPR from 81.25% to 18.75%. It failed the preregistered PlantSeg
+FPR <10% gate, so the decision is `H3_BLOCK_H2_PRIORITY`. This is useful H3
+signal but insufficient safety evidence; it does not authorize learned gating.
+The next branch is a literature/red-team reset followed by one frozen H2
+full-frame token-selection micro study.

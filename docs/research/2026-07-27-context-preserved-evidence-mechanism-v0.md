@@ -50,3 +50,10 @@ damage-null. This isolates H3 from H1. Failure blocks a learned gate and sends
 the project toward H2 token selection; success permits a tiny gated-fusion
 prototype. No QLoRA or confirmatory set is authorized.
 
+## Task 13A outcome
+
+The head produced a large rejection improvement without positive loss, but its
+PlantSeg FPR was 18.75%, above the frozen <10% requirement. H3 therefore remains
+informative but fails the safety gate. Learned fusion/gating is blocked; the
+next mechanism discriminator must preserve the full frame and test H2 token
+selection after a literature/red-team reset.
