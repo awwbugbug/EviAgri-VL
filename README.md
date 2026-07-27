@@ -2,6 +2,13 @@
 
 轻量、证据绑定、低幻觉的农业害虫视觉语言诊断研究工程。当前主干采用Qwen2.5-VL-3B-Instruct，并遵循Micro-First原则：任何全量训练前先运行小规模、可证伪、带停止门槛的可信度实验。
 
+## 快速入口
+
+- 贡献与代理规则：`AGENTS.md`
+- 当前可信状态与下一任务：`docs/research/CURRENT_STATE.md`
+- 竞争假设树：`docs/research/2026-07-27-research-question-hypothesis-tree-v1.md`
+- 远程部署规范：`docs/remote-deployment-runbook.md`
+
 ## 仓库内容
 
 - `server/`：数据协议、训练、推理、评估和审计代码。
@@ -22,12 +29,6 @@
 
 ## 当前路线
 
-当前冻结设计为Task 10 Micro-First：
+现有证据支持“全局上下文作为anchor、局部证据作为条件增量”的研究机制：直接裁剪替换全图已被证伪；`GL`相对同维度`GG`在两批独立探索样本上方向一致，但尚未形成确认性结论。
 
-`Open Diagnosis → Candidate Verification → Evidence Grounding → Abstention`
-
-详细规格见：`docs/superpowers/specs/2026-07-17-task10-micro-first-design.md`。
-
-## Task 10A法医关口
-
-Task 10A是基于冻结v2.2 dev协议的无训练、fail-closed审计。它在任何Task 10B规划前检查bbox坐标链、token级image/no-image PDM-H和family级因果一致性。服务器正式入口为`server/run_task10a_forensics.sh`；脚本拒绝复用既有输出目录，且不会授权训练或自动执行Task 10B。
+下一步为Task13A evidence-presence head微实验，用于区分上下文保持融合与presence/taxonomy分离。当前不授权大训练、动态门控或Task8确认集。实时边界以`docs/research/CURRENT_STATE.md`为准。
