@@ -31,6 +31,15 @@ def largest_component_box(mask: np.ndarray) -> tuple[tuple[int,int,int,int], int
     return (int(xs.min()),int(ys.min()),int(xs.max()+1),int(ys.max()+1)),int(sizes[selected])
 
 
+def crop_mode(area_fraction: float, full_frame_threshold: float | None) -> str:
+    """Assign a model-input mode without pretending a near-full crop is local."""
+    if full_frame_threshold is None:
+        return "crop"
+    if not (0 < full_frame_threshold < 1):
+        raise ValueError("full-frame threshold must be between zero and one")
+    return "identity_full_frame" if area_fraction >= full_frame_threshold else "effective_crop"
+
+
 def read_rows(path: Path) -> list[dict[str,Any]]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
 
@@ -55,7 +64,7 @@ def fixed_samples(base: list[dict[str,Any]], plantseg: list[dict[str,Any]]) -> t
     return positive,nulls
 
 
-def build(*, base_manifest: Path, plantseg_manifest: Path, output_root: Path) -> dict[str,Any]:
+def build(*, base_manifest: Path, plantseg_manifest: Path, output_root: Path, full_frame_threshold: float | None = None) -> dict[str,Any]:
     root=Path(output_root); ensure_new_directory(root); (root/"status.json").write_text('{"state":"running"}\n',encoding="utf-8")
     try:
         crops=root/"crops"; overlays=root/"overlays"; crops.mkdir(); overlays.mkdir()
@@ -72,29 +81,44 @@ def build(*, base_manifest: Path, plantseg_manifest: Path, output_root: Path) ->
                 if xml_size != image.size: raise ValueError("annotation/image size mismatch")
                 fraction=.20 if kind=="ip102_bbox" else .25
                 crop_box=expand_box(evidence,image.width,image.height,fraction)
-                crop=image.crop(crop_box); opaque=hashlib.sha256(f"task11c0|{kind}|{row['id']}".encode()).hexdigest()[:16]
+                crop=image.crop(crop_box); area=(crop.width*crop.height)/(image.width*image.height)
+                mode=crop_mode(area,full_frame_threshold)
+                opaque=hashlib.sha256(f"task11c0|{kind}|{row['id']}".encode()).hexdigest()[:16]
                 crop_path=crops/f"{opaque}.jpg"; crop.save(crop_path,quality=95)
                 overlay=image.copy(); draw=ImageDraw.Draw(overlay); draw.rectangle(evidence,outline="red",width=max(2,min(image.size)//150)); draw.rectangle(crop_box,outline="lime",width=max(2,min(image.size)//150))
                 overlay_path=overlays/f"{opaque}.jpg"; overlay.save(overlay_path,quality=90)
-                area=(crop.width*crop.height)/(image.width*image.height)
                 records.append({"id":str(row["id"]),"kind":kind,"class_id":row.get("class_id"),"source_image_sha256":sha256_file(source),
                     "evidence_box":list(evidence),"crop_box":list(crop_box),"source_size":list(image.size),"crop_size":list(crop.size),
-                    "crop_area_fraction":area,"crop":str(crop_path),"crop_sha256":sha256_file(crop_path),"overlay":str(overlay_path)})
+                    "crop_area_fraction":area,"crop_mode":mode,"model_image":str(source) if mode=="identity_full_frame" else str(crop_path),
+                    "crop":str(crop_path),"crop_sha256":sha256_file(crop_path),"overlay":str(overlay_path)})
         with (root/"manifest.jsonl").open("x",encoding="utf-8",newline="\n") as h:
             for r in records:h.write(json.dumps(r,sort_keys=True,separators=(",",":"))+"\n")
         sections=[]
         for kind in ("ip102_bbox","plantseg_mask"):
             cards=[]
             for r in [x for x in records if x["kind"]==kind]:
-                cards.append(f'<article><h3>{html.escape(r["id"])}</h3><img src="overlays/{Path(r["overlay"]).name}"><img src="crops/{Path(r["crop"]).name}"><p>crop fraction={r["crop_area_fraction"]:.3f}</p></article>')
+                cards.append(f'<article><h3>{html.escape(r["id"])}</h3><img src="overlays/{Path(r["overlay"]).name}"><img src="crops/{Path(r["crop"]).name}"><p>mode={r["crop_mode"]}; crop fraction={r["crop_area_fraction"]:.3f}</p></article>')
             sections.append(f"<h2>{kind}</h2><main>{''.join(cards)}</main>")
         page='<!doctype html><meta charset="utf-8"><style>main{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}article{border:1px solid #aaa;padding:8px}img{width:48%;vertical-align:top;margin:1%}</style>'+''.join(sections)
         (root/"review.html").write_text(page,encoding="utf-8")
         fractions=[r["crop_area_fraction"] for r in records]
         gates={"counts_16_plus_16":len(records)==32,"all_evidence_contained":all(r["crop_box"][0]<=r["evidence_box"][0] and r["crop_box"][1]<=r["evidence_box"][1] and r["crop_box"][2]>=r["evidence_box"][2] and r["crop_box"][3]>=r["evidence_box"][3] for r in records),
-            "all_crops_nonempty":all(min(r["crop_size"])>0 for r in records),"all_crops_strictly_local":all(r["crop_area_fraction"]<1 for r in records),"median_crop_fraction_lt_0_75":float(np.median(fractions))<.75}
-        report={"version":"task11c0-local-crop-smoke-v1","decision":"PASS" if all(gates.values()) else "BLOCK","gates":gates,"count":len(records),
-            "crop_fraction":{"min":min(fractions),"median":float(np.median(fractions)),"max":max(fractions)},"training_performed":False,"task8_locked_set_read":False}
+            "all_crops_nonempty":all(min(r["crop_size"])>0 for r in records),"median_crop_fraction_lt_0_75":float(np.median(fractions))<.75}
+        if full_frame_threshold is None:
+            gates["all_crops_strictly_local"]=all(r["crop_area_fraction"]<1 for r in records)
+        else:
+            effective=[r for r in records if r["crop_mode"]=="effective_crop"]
+            identity=[r for r in records if r["crop_mode"]=="identity_full_frame"]
+            gates.update({"all_samples_have_one_mode":len(effective)+len(identity)==len(records),
+                "effective_crop_coverage_ge_0_75":len(effective)/len(records)>=.75,
+                "all_effective_crops_below_threshold":all(r["crop_area_fraction"]<full_frame_threshold for r in effective),
+                "all_identity_fallbacks_at_or_above_threshold":all(r["crop_area_fraction"]>=full_frame_threshold for r in identity),
+                "identity_fallback_uses_original_source":all(r["model_image"] not in {x["crop"] for x in records} for r in identity)})
+        counts={mode:sum(r["crop_mode"]==mode for r in records) for mode in sorted({r["crop_mode"] for r in records})}
+        report={"version":"task11c0-local-crop-smoke-v2" if full_frame_threshold is not None else "task11c0-local-crop-smoke-v1",
+            "decision":"PASS" if all(gates.values()) else "BLOCK","gates":gates,"count":len(records),"crop_mode_counts":counts,
+            "full_frame_threshold":full_frame_threshold,"crop_fraction":{"min":min(fractions),"median":float(np.median(fractions)),"max":max(fractions)},
+            "training_performed":False,"task8_locked_set_read":False}
         write_json_new(root/"smoke_report.json",report)
         signed=["manifest.jsonl","review.html","smoke_report.json"]+[str(p.relative_to(root)) for p in sorted(crops.iterdir())]+[str(p.relative_to(root)) for p in sorted(overlays.iterdir())]
         with (root/"completion.sha256").open("x",encoding="utf-8",newline="\n") as h:
@@ -105,6 +129,6 @@ def build(*, base_manifest: Path, plantseg_manifest: Path, output_root: Path) ->
 
 
 def main() -> None:
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument("--base-manifest",type=Path,required=True);p.add_argument("--plantseg-manifest",type=Path,required=True);p.add_argument("--output-root",type=Path,required=True);a=p.parse_args()
-    print(json.dumps(build(base_manifest=a.base_manifest,plantseg_manifest=a.plantseg_manifest,output_root=a.output_root),indent=2,sort_keys=True))
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument("--base-manifest",type=Path,required=True);p.add_argument("--plantseg-manifest",type=Path,required=True);p.add_argument("--output-root",type=Path,required=True);p.add_argument("--full-frame-threshold",type=float);a=p.parse_args()
+    print(json.dumps(build(base_manifest=a.base_manifest,plantseg_manifest=a.plantseg_manifest,output_root=a.output_root,full_frame_threshold=a.full_frame_threshold),indent=2,sort_keys=True))
 if __name__=="__main__":main()
