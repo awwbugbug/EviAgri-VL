@@ -60,3 +60,10 @@ prioritizes H2. No branch authorizes QLoRA or full training.
 Task 12A outcome: `H1_PRIORITY`, `reliability_safe=true`. Required next action:
 repeat the identical tournament on a disjoint second exploration batch before
 designing any learned fusion module.
+
+Task 12B outcome: the disjoint replication preserved the direction with smaller
+effects (`GL-GG` Accuracy +3.125 pp; Macro-F1 +5.417 pp). Point estimates for
+true-class probability, null confidence, and confidence AUROC remained safe,
+but their individual 95% intervals crossed zero. H1 therefore has two-batch
+directional exploratory support and may enter mechanism design; it is not a
+confirmed effect. H2 and H3 remain active controls.
