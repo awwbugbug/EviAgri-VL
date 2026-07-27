@@ -89,14 +89,20 @@ figure img{{width:100%;height:min(62vh,620px);object-fit:contain}} figcaption{{p
 <script>
 const criteria=__CRITERIA_JSON__, allIds=__ALL_IDS_JSON__, rejectIds=__REJECT_IDS_JSON__;
 const key='task11a3-reviewer-b-reasons-v1';
-let saved=JSON.parse(localStorage.getItem(key)||'{{}}');
+const countEl=document.getElementById('count');
+const barEl=document.getElementById('bar');
+const nextButton=document.getElementById('next');
+const exportButton=document.getElementById('export');
+function loadSaved(){{try{{return JSON.parse(localStorage.getItem(key)||'{{}}')}}catch(error){{return {{}}}}}}
+function persistSaved(){{try{{localStorage.setItem(key,JSON.stringify(saved))}}catch(error){{/* file:// storage may be unavailable; keep the in-memory state */}}}}
+let saved=loadSaved();
 document.querySelectorAll('input[type=checkbox]').forEach(x=>{{x.checked=(saved[x.dataset.id]||[]).includes(x.dataset.criterion);x.addEventListener('change',save)}});
 function selected(id){{return [...document.querySelectorAll(`input[data-id="${{id}}"]:checked`)].map(x=>x.dataset.criterion)}}
-function save(){{saved={{}};rejectIds.forEach(id=>{{const s=selected(id);if(s.length)saved[id]=s}});localStorage.setItem(key,JSON.stringify(saved));render()}}
-function render(){{let n=0;rejectIds.forEach(id=>{{const ok=selected(id).length>0;document.getElementById('card-'+id).classList.toggle('done',ok);document.querySelector('#card-'+id+' .state').textContent=ok?'已记录':'待补原因';if(ok)n++}});count.textContent=`${{n}} / __REJECT_COUNT__`;bar.value=n}}
+function save(){{saved={{}};rejectIds.forEach(id=>{{const s=selected(id);if(s.length)saved[id]=s}});persistSaved();render()}}
+function render(){{let n=0;rejectIds.forEach(id=>{{const ok=selected(id).length>0;document.getElementById('card-'+id).classList.toggle('done',ok);document.querySelector('#card-'+id+' .state').textContent=ok?'已记录':'待补原因';if(ok)n++}});countEl.textContent=`${{n}} / __REJECT_COUNT__`;barEl.value=n}}
 function esc(v){{v=String(v);return /[",\\n]/.test(v)?'"'+v.replaceAll('"','""')+'"':v}}
-next.onclick=()=>{{const id=rejectIds.find(id=>selected(id).length===0);(id?document.getElementById('card-'+id):document.querySelector('.actions')).scrollIntoView({{behavior:'smooth',block:'start'}})}};
-export.onclick=()=>{{const missing=rejectIds.filter(id=>selected(id).length===0);if(missing.length){{alert(`还有 ${{missing.length}} 张没有选择失败原因。`);document.getElementById('card-'+missing[0]).scrollIntoView({{behavior:'smooth'});return}}
+nextButton.onclick=()=>{{const id=rejectIds.find(id=>selected(id).length===0);(id?document.getElementById('card-'+id):document.querySelector('.actions')).scrollIntoView({{behavior:'smooth',block:'start'}})}};
+exportButton.onclick=()=>{{const missing=rejectIds.filter(id=>selected(id).length===0);if(missing.length){{alert(`还有 ${{missing.length}} 张没有选择失败原因。`);document.getElementById('card-'+missing[0]).scrollIntoView({{behavior:'smooth'});return}}
  const rejected=new Set(rejectIds);let rows=[['audit_id','reviewer_id',...criteria,'notes']];allIds.forEach(id=>{{const fails=new Set(saved[id]||[]);const vals=criteria.map(c=>fails.has(c)?'FAIL':'PASS');const notes=[...fails].map(c=>'FAIL:'+c).join(';');rows.push([id,'reviewer_B',...vals,notes])}});
  const csv='\\ufeff'+rows.map(r=>r.map(esc).join(',')).join('\\r\\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{{type:'text/csv;charset=utf-8'}}));a.download='reviewer_b_completed.csv';a.click();URL.revokeObjectURL(a.href)}};
 render();

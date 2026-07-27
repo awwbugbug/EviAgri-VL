@@ -31,6 +31,12 @@ def test_reason_page_requires_confirmed_independence_and_embeds_full_manifest(tm
     assert "Reviewer A" not in page
     assert '/[",\\n]/' in page
     assert "join('\\r\\n')" in page
+    assert "function loadSaved(){try{" in page
+    assert "function persistSaved(){try{" in page
+    assert "countEl.textContent" in page
+    assert "barEl.value" in page
+    assert "exportButton.onclick" in page
+    assert "export.onclick" not in page
 
 
 def test_reason_page_rejects_unconfirmed_or_unknown_ids(tmp_path):
