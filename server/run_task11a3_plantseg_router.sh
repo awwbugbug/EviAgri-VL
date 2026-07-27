@@ -3,14 +3,14 @@ set -euo pipefail
 
 PY_BASE=/root/miniconda3/bin/python
 PY_VISION=/root/miniconda3/envs/eviagri/bin/python
-PROJECT=/root/EviAgri-VL/task11a3_router_code_20260727_v3
+PROJECT=/root/EviAgri-VL/task11a3_router_code_20260727_v4
 RAW=/root/autodl-tmp/EviAgriDiag/datasets/raw/plantseg_official_2026-07-23/plantseg.zip
 BLIND=/root/autodl-tmp/EviAgriDiag/datasets/derived/plantseg_blind_source_audit/2026-07-27
 HUMAN=/root/autodl-tmp/EviAgriDiag/datasets/derived/plantseg_final_human_audit/2026-07-27
 TASK10B=/root/autodl-tmp/EviAgriDiag/experiments/task10_micro_first/2026-07-17/task10b_v2/formal_features
 TASK11A2=/root/autodl-tmp/EviAgriDiag/experiments/task11a2_plantdoc_real_null/2026-07-23/features
 MODEL=/root/autodl-tmp/EviAgriDiag/models/Qwen/Qwen2___5-VL-3B-Instruct
-ROOT=/root/autodl-tmp/EviAgriDiag/experiments/task11a3_plantseg_real_null/2026-07-27/formal_v2
+ROOT=/root/autodl-tmp/EviAgriDiag/experiments/task11a3_plantseg_real_null/2026-07-27/formal_v3
 DATASET="$ROOT/dataset"
 FEATURES="$ROOT/features"
 EVALUATION="$ROOT/evaluation"
