@@ -31,7 +31,7 @@ def test_reviewer_draft_expands_unlisted_rows_as_pass(tmp_path):
     assert summary["unlisted_rows_assumed_all_pass"] == 1
 
 
-def test_reviewer_draft_rejects_unknown_ids_and_non_draft_status(tmp_path):
+def test_reviewer_draft_rejects_unknown_ids_and_invalid_status(tmp_path):
     manifest = tmp_path / "manifest.jsonl"
     _write(manifest, '{"audit_id":"a"}\n')
     declaration = tmp_path / "declaration.json"
@@ -43,7 +43,26 @@ def test_reviewer_draft_rejects_unknown_ids_and_non_draft_status(tmp_path):
     with pytest.raises(ValueError, match="unknown audit_id"):
         compile_review(manifest_path=manifest, declaration_path=declaration, output_csv=output)
     _write(declaration, json.dumps({
-        "status": "CONFIRMED", "reviewer_id": "r", "failures": {}, "uncertain": {},
+        "status": "INVALID", "reviewer_id": "r", "failures": {}, "uncertain": {},
     }))
-    with pytest.raises(ValueError, match="remain a draft"):
+    with pytest.raises(ValueError, match="declaration status"):
         compile_review(manifest_path=manifest, declaration_path=declaration, output_csv=output)
+
+
+def test_reviewer_draft_accepts_explicitly_confirmed_declaration(tmp_path):
+    manifest = tmp_path / "manifest.jsonl"
+    _write(manifest, '{"audit_id":"a"}\n{"audit_id":"b"}\n')
+    declaration = tmp_path / "declaration.json"
+    _write(declaration, json.dumps({
+        "status": "CONFIRMED",
+        "reviewer_id": "reviewer_A",
+        "failures": {"no_collage": ["a"]},
+        "uncertain": {},
+    }))
+
+    summary = compile_review(
+        manifest_path=manifest, declaration_path=declaration, output_csv=tmp_path / "review.csv"
+    )
+
+    assert summary["status"] == "CONFIRMED"
+    assert summary["decision_counts"] == {"PASS": 1, "REJECT": 1, "UNCERTAIN": 0}

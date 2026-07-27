@@ -22,8 +22,9 @@ def compile_review(*, manifest_path: Path, declaration_path: Path, output_csv: P
         raise ValueError("review manifest audit IDs are not unique")
     declaration = json.loads(Path(declaration_path).read_text(encoding="utf-8"))
     reviewer_id = str(declaration.get("reviewer_id", "")).strip()
-    if declaration.get("status") != "DRAFT_PENDING_CONFIRMATION":
-        raise ValueError("declaration must remain a draft until explicit confirmation")
+    declaration_status = declaration.get("status")
+    if declaration_status not in {"DRAFT_PENDING_CONFIRMATION", "CONFIRMED"}:
+        raise ValueError("declaration status must be DRAFT_PENDING_CONFIRMATION or CONFIRMED")
     failures = declaration.get("failures", {})
     unknown_criteria = set(failures) - set(CRITERIA)
     if unknown_criteria:
@@ -72,7 +73,7 @@ def compile_review(*, manifest_path: Path, declaration_path: Path, output_csv: P
     summary = {
         "version": "task11a3-reviewer-draft-1",
         "state": "completed",
-        "status": "DRAFT_PENDING_CONFIRMATION",
+        "status": declaration_status,
         "reviewer_id": reviewer_id,
         "audit_rows": len(rows),
         "decision_counts": validation["counts"],
